@@ -1,0 +1,46 @@
+<div class="p-6">
+  <p-card header="PrimeNG Demo" subheader="Reusable Custom Table Component"
+    [style]="{ width: '100%', marginBottom: '2em' }">
+    <div class="flex flex-column gap-4">
+
+      <!-- Products Table: Frozen + Sort + Context Menu + Single Selection + Scrollable -->
+      <section>
+        <h3 class="text-xl font-bold mb-4">Products Table
+          <small class="text-sm font-normal text-500 ml-2">(Frozen column, Sorting, Scrollable, Context Menu, Single
+            Selection)</small>
+        </h3>
+        <app-custom-table [data]="activeProducts" [columns]="productColumns" title="Products List"
+          [loading]="isProductsLoading" [globalFilterFields]="['name', 'code', 'category']" [resizable]="true"
+          [showGridlines]="true" [showGlobalFilter]="true" [showColumnFilter]="true" [scrollable]="true"
+          scrollHeight="350px" selectionMode="single" dataKey="id" [(selection)]="selectedProduct" [paginator]="true"
+          [rows]="5" [rowsPerPageOptions]="[5, 10, 20]" [contextMenuItems]="productContextMenu">
+        </app-custom-table>
+        <div class="mt-2 text-sm text-600" *ngIf="selectedProduct">
+          <strong>Selected:</strong> {{ selectedProduct.name }} ({{ selectedProduct.code }})
+        </div>
+      </section>
+
+      <hr class="my-4 border-top-1 border-300" />
+
+      <!-- Users Table: Multiple Selection + Sort -->
+      <section>
+        <h3 class="text-xl font-bold mb-4">Users Table
+          <small class="text-sm font-normal text-500 ml-2">(Multiple Selection with Checkboxes, Sorting)</small>
+        </h3>
+        <app-custom-table [data]="users" [columns]="userColumns" [resizable]="true" [showGridlines]="true"
+          [showGlobalFilter]="false" [showColumnFilter]="true" selectionMode="multiple" dataKey="id"
+          [(selection)]="selectedUsers" [paginator]="true" [rows]="5" [rowsPerPageOptions]="[5, 10, 20]"
+          rowGroupMode="subheader" groupRowsBy="department" [rowGroupShowFooter]="false" [expandableRowGroups]="true">
+        </app-custom-table>
+        <div class="mt-2 flex gap-2 align-items-center">
+          <button pButton label="Show Selected" (click)="onButtonClick()" icon="pi pi-check"
+            [disabled]="!selectedUsers.length"></button>
+          <span class="text-sm text-600">{{ selectedUsers.length }} user(s) selected</span>
+        </div>
+      </section>
+
+    </div>
+  </p-card>
+</div>
+
+<router-outlet></router-outlet>

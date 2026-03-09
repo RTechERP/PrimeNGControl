@@ -1,0 +1,132 @@
+<p-contextMenu #cm [model]="contextMenuItems"></p-contextMenu>
+<p-contextMenu #hcm [model]="headerMenuItems"></p-contextMenu>
+
+<p-table #dt [value]="data" [tableStyle]="{ 'min-width': '50rem' }" [resizableColumns]="resizable"
+    [columnResizeMode]="resizeMode" [showGridlines]="showGridlines" styleClass="p-datatable-gridlines p-datatable-sm"
+    [globalFilterFields]="globalFilterFields" [scrollable]="scrollable" [scrollHeight]="scrollable ? scrollHeight : ''"
+    [paginator]="paginator" [rows]="rows" [rowsPerPageOptions]="rowsPerPageOptions" [rowGroupMode]="rowGroupMode"
+    [groupRowsBy]="groupRowsBy" [sortMode]="sortMode" [selectionMode]="selectionMode" [(selection)]="selection"
+    (selectionChange)="onSelectionChange($event)" [dataKey]="dataKey" [loading]="loading"
+    [contextMenu]="contextMenuItems.length > 0 ? cm : null" [(contextMenuSelection)]="selectedContextRow"
+    (onContextMenuSelect)="onContextMenuSelect($event)" [rowHover]="true">
+
+    <!-- Caption with Global Search -->
+    <ng-template pTemplate="caption" *ngIf="title || showGlobalFilter">
+        <div class="flex justify-content-between align-items-center">
+            <h4 class="m-0">{{ title }}</h4>
+            <p-iconfield *ngIf="showGlobalFilter">
+                <p-inputicon styleClass="pi pi-search" />
+                <input pInputText type="text" (input)="onGlobalFilter($event)" placeholder="Global Search" />
+            </p-iconfield>
+        </div>
+    </ng-template>
+
+    <!-- Header Row: Titles -->
+    <ng-template pTemplate="header">
+        <tr>
+            <!-- Checkbox header for multiple selection -->
+            <th *ngIf="selectionMode === 'multiple'" style="width: 3rem" pFrozenColumn [frozen]="true">
+                <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+            </th>
+            <th *ngFor="let col of columns" pResizableColumn [pSortableColumn]="col.field"
+                [pSortableColumnDisabled]="!col.sortable" pFrozenColumn [frozen]="col.frozen || false"
+                [alignFrozen]="col.alignFrozen || 'left'" [style.width]="col.width || 'auto'"
+                (contextmenu)="col.sortable ? onHeaderContextMenu($event, col.field) : null">
+                {{ col.header }}
+                <p-sortIcon *ngIf="col.sortable" [field]="col.field"></p-sortIcon>
+            </th>
+        </tr>
+        <!-- Filter Row -->
+        <tr *ngIf="showColumnFilter">
+            <!-- Empty cell for checkbox column -->
+            <th *ngIf="selectionMode === 'multiple'" pFrozenColumn [frozen]="true"></th>
+            <th *ngFor="let col of columns" pFrozenColumn [frozen]="col.frozen || false"
+                [alignFrozen]="col.alignFrozen || 'left'">
+
+                <!-- Default: text/numeric input filter -->
+                <ng-container *ngIf="!col.filterMode || col.filterMode === 'input'">
+                    <p-columnFilter [type]="col.filterType || 'text'" [field]="col.field" display="row"
+                        matchMode="contains" [placeholder]="'Search ' + col.header">
+                    </p-columnFilter>
+                </ng-container>
+
+                <!-- Dropdown (Select) filter -->
+                <ng-container *ngIf="col.filterMode === 'dropdown'">
+                    <p-columnFilter [field]="col.field" matchMode="equals" display="row" [showMenu]="false">
+                        <ng-template pTemplate="filter" let-value let-filterCallback="filterCallback">
+                            <p-select [options]="getFilterOptions(col)" [ngModel]="value"
+                                (ngModelChange)="filterCallback($event)" optionLabel="label" optionValue="value"
+                                [placeholder]="'Select ' + col.header" [showClear]="true" [filter]="true"
+                                filterPlaceholder="Search..." appendTo="body" [style]="{ 'width': '100%' }">
+                            </p-select>
+                        </ng-template>
+                    </p-columnFilter>
+                </ng-container>
+
+                <!-- MultiSelect filter -->
+                <ng-container *ngIf="col.filterMode === 'multiselect'">
+                    <p-columnFilter [field]="col.field" matchMode="in" display="row" [showMenu]="false">
+                        <ng-template pTemplate="filter" let-value let-filterCallback="filterCallback">
+                            <p-multiSelect [options]="getFilterOptions(col)" [ngModel]="value"
+                                (ngModelChange)="filterCallback($event)" optionLabel="label" optionValue="value"
+                                [placeholder]="'Select ' + col.header" [filter]="true" filterPlaceholder="Search..."
+                                appendTo="body" [style]="{ 'width': '100%' }">
+                            </p-multiSelect>
+                        </ng-template>
+                    </p-columnFilter>
+                </ng-container>
+
+            </th>
+        </tr>
+    </ng-template>
+
+    <!-- Group Header (for subheader mode) -->
+    <ng-template pTemplate="groupheader" let-rowData let-rowIndex="rowIndex">
+        <tr *ngIf="rowGroupMode === 'subheader'" pRowGroupHeader>
+            <td [attr.colspan]="columns.length + (selectionMode === 'multiple' ? 1 : 0)">
+                <p-button *ngIf="expandableRowGroups" (click)="toggleGroup(rowData[groupRowsBy])" [text]="true"
+                    [rounded]="true" severity="secondary"
+                    [icon]="isGroupExpanded(rowData[groupRowsBy]) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
+                    styleClass="mr-2">
+                </p-button>
+                <span class="font-bold ml-2">{{ rowData[groupRowsBy] }}</span>
+            </td>
+        </tr>
+    </ng-template>
+
+    <!-- Body Row -->
+    <ng-template pTemplate="body" let-rowData let-rowIndex="rowIndex">
+        <tr *ngIf="!expandableRowGroups || isGroupExpanded(rowData[groupRowsBy])" [pSelectableRow]="rowData"
+            [pSelectableRowIndex]="rowIndex" [pContextMenuRow]="contextMenuItems.length > 0 ? rowData : null">
+            <!-- Checkbox for multiple selection -->
+            <td *ngIf="selectionMode === 'multiple'" pFrozenColumn [frozen]="true">
+                <p-tableCheckbox [value]="rowData"></p-tableCheckbox>
+            </td>
+            <td *ngFor="let col of columns" pFrozenColumn [frozen]="col.frozen || false"
+                [alignFrozen]="col.alignFrozen || 'left'">
+                <div [class]="(col.textWrap !== undefined ? col.textWrap : textWrap) ? 'wrap-text' : 'truncate-text'"
+                    [title]="rowData[col.field]">
+                    {{ rowData[col.field] }}
+                </div>
+            </td>
+        </tr>
+    </ng-template>
+
+    <!-- Group Footer -->
+    <ng-template pTemplate="groupfooter" let-rowData *ngIf="rowGroupMode === 'subheader' && rowGroupShowFooter">
+        <tr>
+            <td [attr.colspan]="columns.length + (selectionMode === 'multiple' ? 1 : 0)"
+                class="text-right font-bold pr-3">
+                End of {{ rowData[groupRowsBy] }} Group
+            </td>
+        </tr>
+    </ng-template>
+
+    <!-- Empty Message -->
+    <ng-template pTemplate="emptymessage">
+        <tr>
+            <td [attr.colspan]="columns.length + (selectionMode === 'multiple' ? 1 : 0)">No data found.</td>
+        </tr>
+    </ng-template>
+
+</p-table>

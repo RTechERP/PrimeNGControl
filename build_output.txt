@@ -1,0 +1,24 @@
+
+> test-all-prime-ng@0.0.0 build
+> ng build
+
+[33mΓ¥»[39m Building...
+[32mΓ£ö[39m Building...
+[1mInitial chunk files[22m[2m | [22m[1mNames[22m        [2m | [22m [1mRaw size[22m[2m | [22m[1mEstimated transfer size[22m
+[32mmain-BEID6MBP.js[39m   [2m | [22m[2mmain[22m         [2m | [22m  [36m1.07 MB[39m[2m | [22m              [36m185.39 kB[39m
+[32mstyles-UQ5Z2IDZ.css[39m[2m | [22m[2mstyles[22m       [2m | [22m[36m359.40 kB[39m[2m | [22m               [36m19.70 kB[39m
+[32mchunk-RD2QW2ZY.js[39m  [2m | [22m[2m-[22m            [2m | [22m[36m172.82 kB[39m[2m | [22m               [36m49.99 kB[39m
+
+[1m [22m                  [2m | [22m[1mInitial total[22m[2m | [22m  [1m[91m1.60 MB[39m[22m[2m | [22m              [1m255.08 kB[22m
+
+[1mLazy chunk files[22m   [2m | [22m[1mNames[22m        [2m | [22m [1mRaw size[22m[2m | [22m[1mEstimated transfer size[22m
+[32mchunk-KWBI4TST.js[39m  [2m | [22m[2mbrowser[22m      [2m | [22m [36m67.75 kB[39m[2m | [22m               [36m17.78 kB[39m
+
+Application bundle generation failed. [4.341 seconds] - 2026-03-09T02:55:04.894Z
+
+Γû▓ [WARNING] bundle initial exceeded maximum budget. Budget 500.00 kB was not met by 1.10 MB with a total of 1.60 MB.
+
+
+X [ERROR] bundle initial exceeded maximum budget. Budget 1.00 MB was not met by 601.46 kB with a total of 1.60 MB.
+
+

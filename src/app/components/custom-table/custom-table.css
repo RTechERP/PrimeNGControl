@@ -1,0 +1,46 @@
+/* Centering Table Headers */
+:host ::ng-deep .p-datatable-thead>tr>th {
+    text-align: center;
+    justify-content: center;
+}
+
+/* Ensuring Filters fill the column width correctly */
+:host ::ng-deep .p-column-filter-row {
+    width: 100% !important;
+}
+
+:host ::ng-deep .p-column-filter-element {
+    width: 100% !important;
+}
+
+:host ::ng-deep .p-column-filter-element input {
+    width: 100% !important;
+}
+
+/* Fix for PrimeNG specific input containers */
+:host ::ng-deep .p-inputtext {
+    width: 100% !important;
+}
+
+/* Force full width for filter inputs */
+:host ::ng-deep p-columnfilterformelement,
+:host ::ng-deep p-columnfilterformelement.p-fluid {
+    width: 100% !important;
+}
+
+/* Text Truncation for long strings */
+.truncate-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    width: 100%;
+}
+
+/* Text Wrapping for long strings */
+.wrap-text {
+    white-space: normal;
+    word-break: break-word;
+    display: block;
+    width: 100%;
+}
