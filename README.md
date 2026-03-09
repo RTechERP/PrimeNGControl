@@ -572,3 +572,354 @@ src/app/components/custom-table/
 ├── custom-table.html        # Template PrimeNG p-table
 └── custom-table.css         # CSS (truncate, wrap styles)
 ```
+
+---
+---
+
+# 🌳 Custom TreeTable Component — Hướng dẫn sử dụng
+
+Component `app-custom-tree-table` là wrapper bọc ngoài PrimeNG `p-treeTable`, dùng cho **dữ liệu phân cấp (hierarchical/tree)** với **17 tính năng** configurable.
+
+---
+
+## 📦 Import
+
+```typescript
+import { CustomTreeTable } from './components/custom-tree-table/custom-tree-table';
+import { TreeColumnDef } from './components/custom-tree-table/tree-column-def.model';
+import { TreeNode } from 'primeng/api';
+```
+
+```typescript
+@Component({
+  imports: [CustomTreeTable],
+})
+```
+
+---
+
+## 📝 TreeColumnDef Interface
+
+```typescript
+interface TreeColumnDef {
+  field: string;             // Property name trong node.data
+  header: string;            // Tiêu đề hiển thị
+  width?: string;            // '200px' hoặc '25%'
+  sortable?: boolean;        // Cho phép sort
+  frozen?: boolean;          // Đóng băng cột
+  alignFrozen?: string;      // 'left' | 'right'
+  filterType?: string;       // 'text' | 'numeric' | 'date'
+  filterMode?: string;       // 'input' | 'dropdown' | 'multiselect'
+  filterOptions?: array;     // [{label, value}]
+  editable?: boolean;        // Cho phép sửa inline
+  textWrap?: boolean;        // Wrap hay truncate
+}
+```
+
+---
+
+## 📊 Cấu trúc dữ liệu TreeNode
+
+PrimeNG TreeTable sử dụng `TreeNode<T>`:
+
+```typescript
+import { TreeNode } from 'primeng/api';
+
+const data: TreeNode[] = [
+  {
+    data: { name: 'Documents', size: '—', type: 'Folder' },
+    expanded: true,      // Mở rộng mặc định
+    children: [
+      {
+        data: { name: 'Report.docx', size: '120KB', type: 'File' },
+        leaf: true       // Node lá (không có con)
+      }
+    ]
+  }
+];
+```
+
+> **Lưu ý:** Dữ liệu nằm trong `node.data`, không phải trực tiếp trên node.
+
+---
+
+## 🔧 Tổng hợp @Input()
+
+| Input | Kiểu | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `data` | `TreeNode[]` | `[]` | Dữ liệu cây phân cấp |
+| `columns` | `TreeColumnDef[]` | `[]` | Định nghĩa cột |
+| `dataKey` | `string` | `''` | Key duy nhất cho selection |
+| `loading` | `boolean` | `false` | Loading spinner |
+| `title` | `string` | `''` | Tiêu đề bảng |
+| `showGlobalFilter` | `boolean` | `false` | Hiện ô tìm kiếm |
+| `globalFilterFields` | `string[]` | `[]` | Các field tìm kiếm |
+| `resizable` | `boolean` | `true` | Kéo resize cột |
+| `resizeMode` | `string` | `'fit'` | `'fit'` hoặc `'expand'` |
+| `showGridlines` | `boolean` | `true` | Đường kẻ ô |
+| `showColumnFilter` | `boolean` | `true` | Hàng filter |
+| `textWrap` | `boolean` | `false` | Wrap text toàn bảng |
+| `scrollable` | `boolean` | `false` | Bật cuộn |
+| `scrollHeight` | `string` | `'400px'` | Chiều cao cuộn |
+| `virtualScroll` | `boolean` | `false` | Cuộn ảo |
+| `virtualScrollItemSize` | `number` | `46` | Chiều cao dòng (px) |
+| `paginator` | `boolean` | `false` | Phân trang |
+| `rows` | `number` | `10` | Số dòng/trang |
+| `rowsPerPageOptions` | `number[]` | `[10,20,50]` | Lựa chọn số dòng |
+| `sortMode` | `string` | `'single'` | `'single'` hoặc `'multiple'` |
+| `selectionMode` | `string\|null` | `null` | `'single'`, `'multiple'`, `'checkbox'` |
+| `selection` | `any` | `null` | Node đang chọn (two-way) |
+| `contextMenuItems` | `MenuItem[]` | `[]` | Menu chuột phải trên node |
+| `reorderableColumns` | `boolean` | `false` | Kéo thả đổi chỗ cột |
+| `editMode` | `string\|undefined` | `undefined` | `'cell'` |
+| `exportable` | `boolean` | `false` | Nút export CSV |
+| `exportFilename` | `string` | `'download'` | Tên file CSV |
+
+---
+
+## 📖 Hướng dẫn từng tính năng
+
+---
+
+### 1. 🌳 Bảng cây cơ bản
+
+```html
+<app-custom-tree-table
+  [data]="fileSystem"
+  [columns]="fileColumns"
+  dataKey="name">
+</app-custom-tree-table>
+```
+
+```typescript
+fileColumns: TreeColumnDef[] = [
+  { field: 'name', header: 'Tên', sortable: true },
+  { field: 'size', header: 'Kích thước' },
+  { field: 'type', header: 'Loại' },
+];
+
+fileSystem: TreeNode[] = [
+  {
+    data: { name: 'Documents', size: '—', type: 'Folder' },
+    expanded: true,
+    children: [
+      { data: { name: 'Report.docx', size: '120KB', type: 'File' }, leaf: true },
+    ]
+  }
+];
+```
+
+> Node có `expanded: true` sẽ mở sẵn. Node có `leaf: true` không hiển thị nút toggle.
+
+---
+
+### 2. ↕️ Sắp xếp (Sorting)
+
+```typescript
+{ field: 'name', header: 'Tên', sortable: true }
+```
+
+```html
+<app-custom-tree-table sortMode="single" ...>
+<app-custom-tree-table sortMode="multiple" ...>
+```
+
+**Xóa sort:** Click chuột phải vào header cột → "Clear Sort".
+
+---
+
+### 3. ✅ Chọn node — Single
+
+```html
+<app-custom-tree-table
+  selectionMode="single"
+  dataKey="name"
+  [(selection)]="selectedFile">
+</app-custom-tree-table>
+```
+
+---
+
+### 4. ☑️ Chọn node — Checkbox (có cascade)
+
+Chọn node cha sẽ tự động chọn tất cả node con.
+
+```html
+<app-custom-tree-table
+  selectionMode="checkbox"
+  dataKey="name"
+  [(selection)]="selectedNodes">
+</app-custom-tree-table>
+```
+
+```typescript
+selectedNodes: TreeNode[] = [];
+```
+
+> **Lưu ý:** Khi dùng `selectionMode="checkbox"`, cột đầu tiên sẽ không cho phép cell edit để tránh xung đột UI.
+
+---
+
+### 5. 🔍 Tìm kiếm toàn bảng (Global Search)
+
+```html
+<app-custom-tree-table
+  [showGlobalFilter]="true"
+  [globalFilterFields]="['name', 'type']"
+  title="File Explorer">
+</app-custom-tree-table>
+```
+
+> TreeTable filter mode mặc định là `lenient` — hiện cả node cha nếu node con khớp.
+
+---
+
+### 6. 🔽 Bộ lọc cột (Column Filters)
+
+```typescript
+// Text filter (mặc định)
+{ field: 'name', header: 'Tên' }
+
+// Dropdown filter
+{ field: 'type', header: 'Loại', filterMode: 'dropdown' }
+
+// Multiselect filter
+{ field: 'status', header: 'Trạng thái', filterMode: 'multiselect' }
+```
+
+Filter options tự tạo từ toàn bộ tree data (đệ quy flatten).
+
+---
+
+### 7. 📃 Phân trang (Pagination)
+
+```html
+<app-custom-tree-table [paginator]="true" [rows]="10" [rowsPerPageOptions]="[5, 10, 20]">
+```
+
+---
+
+### 8. 📜 Cuộn & Cuộn ảo (Scrollable / Virtual Scroll)
+
+```html
+<app-custom-tree-table [scrollable]="true" scrollHeight="400px">
+
+<!-- Virtual scroll cho tree lớn -->
+<app-custom-tree-table [scrollable]="true" scrollHeight="400px"
+  [virtualScroll]="true" [virtualScrollItemSize]="46">
+```
+
+---
+
+### 9. ✏️ Sửa ô (Cell Editing)
+
+```html
+<app-custom-tree-table editMode="cell" dataKey="name">
+</app-custom-tree-table>
+```
+
+```typescript
+columns: TreeColumnDef[] = [
+  { field: 'name', header: 'Tên', editable: true },
+  { field: 'role', header: 'Vai trò', editable: true },
+  { field: 'status', header: 'Trạng thái' },  // Không sửa được
+];
+```
+
+---
+
+### 10. 🖱️ Menu chuột phải (Context Menu)
+
+```html
+<app-custom-tree-table
+  [contextMenuItems]="menuItems"
+  selectionMode="single"
+  dataKey="name">
+</app-custom-tree-table>
+```
+
+```typescript
+menuItems: MenuItem[] = [
+  { label: 'View', icon: 'pi pi-eye', command: () => ... },
+  { label: 'Delete', icon: 'pi pi-trash', command: () => ... },
+];
+```
+
+---
+
+### 11. 📥 Xuất CSV (Export)
+
+```html
+<app-custom-tree-table [exportable]="true" exportFilename="file_system">
+```
+
+> TreeTable export tự viết — flatten toàn bộ tree → CSV. Hỗ trợ UTF-8 BOM cho Excel.
+
+---
+
+### 12. 🔀 Kéo thả đổi chỗ cột (Column Reorder)
+
+```html
+<app-custom-tree-table [reorderableColumns]="true">
+```
+
+---
+
+### 13–17. Các tính năng khác
+
+| Tính năng | Cách dùng |
+|-----------|-----------|
+| Resizable columns | `[resizable]="true"` (mặc định) |
+| Gridlines | `[showGridlines]="true"` (mặc định) |
+| Loading | `[loading]="isLoading"` |
+| Text wrap | `[textWrap]="true"` hoặc per-column `textWrap: true` |
+| Clear Sort | Click phải vào header cột sortable |
+
+---
+
+## 🎯 Ví dụ tổng hợp
+
+```html
+<app-custom-tree-table
+  [data]="fileSystem"
+  [columns]="fileColumns"
+  dataKey="name"
+  title="File Explorer"
+
+  [showGlobalFilter]="true"
+  [globalFilterFields]="['name', 'type']"
+  [showColumnFilter]="true"
+  [resizable]="true"
+  [showGridlines]="true"
+
+  [scrollable]="true"
+  scrollHeight="400px"
+
+  sortMode="single"
+  selectionMode="single"
+  [(selection)]="selectedFile"
+  [contextMenuItems]="menuItems"
+
+  [exportable]="true"
+  exportFilename="file_export"
+  [reorderableColumns]="true">
+</app-custom-tree-table>
+```
+
+---
+
+## 📂 Cấu trúc file
+
+```
+src/app/components/
+├── custom-table/                # Bảng phẳng (flat data)
+│   ├── column-def.model.ts
+│   ├── custom-table.ts
+│   ├── custom-table.html
+│   └── custom-table.css
+└── custom-tree-table/           # Bảng cây (hierarchical data)
+    ├── tree-column-def.model.ts
+    ├── custom-tree-table.ts
+    ├── custom-tree-table.html
+    └── custom-tree-table.css
+```

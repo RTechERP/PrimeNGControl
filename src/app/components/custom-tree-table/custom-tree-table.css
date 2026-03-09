@@ -1,0 +1,18 @@
+.truncate-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wrap-text {
+    white-space: normal;
+    word-break: break-word;
+}
+
+:host ::ng-deep .p-treetable .p-treetable-thead>tr>th {
+    text-align: center;
+}
+
+:host ::ng-deep .p-treetable .p-treetable-thead>tr>th .p-column-filter {
+    width: 100%;
+}

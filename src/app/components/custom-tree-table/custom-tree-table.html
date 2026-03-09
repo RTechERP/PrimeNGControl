@@ -1,0 +1,121 @@
+<p-contextMenu #cm [model]="contextMenuItems"></p-contextMenu>
+<p-contextMenu #hcm [model]="headerMenuItems"></p-contextMenu>
+
+<p-treeTable #tt [value]="data" [columns]="columns" [tableStyle]="{ 'min-width': '50rem' }"
+    [resizableColumns]="resizable" [columnResizeMode]="resizeMode" [showGridlines]="showGridlines"
+    styleClass="p-treetable-gridlines p-treetable-sm" [globalFilterFields]="globalFilterFields"
+    [scrollable]="scrollable" [scrollHeight]="scrollable ? scrollHeight : ''" [paginator]="paginator" [rows]="rows"
+    [rowsPerPageOptions]="rowsPerPageOptions" [sortMode]="sortMode" [selectionMode]="selectionMode ?? ''"
+    [(selection)]="selection" (selectionChange)="onSelectionChange($event)" [dataKey]="dataKey" [loading]="loading"
+    [contextMenu]="contextMenuItems.length > 0 ? cm : null" [(contextMenuSelection)]="selectedContextNode"
+    (onContextMenuSelect)="onContextMenuSelect($event)" [rowHover]="true" [reorderableColumns]="reorderableColumns"
+    [virtualScroll]="virtualScroll" [virtualScrollItemSize]="virtualScrollItemSize" [filterMode]="'lenient'">
+
+    <!-- Caption with Global Search + Export -->
+    <ng-template pTemplate="caption" *ngIf="title || showGlobalFilter || exportable">
+        <div class="flex justify-content-between align-items-center">
+            <h4 class="m-0">{{ title }}</h4>
+            <div class="flex gap-2 align-items-center">
+                <p-button *ngIf="exportable" icon="pi pi-download" label="Export CSV" severity="success" [text]="true"
+                    (click)="exportCSV()">
+                </p-button>
+                <p-iconfield *ngIf="showGlobalFilter">
+                    <p-inputicon styleClass="pi pi-search" />
+                    <input pInputText type="text" (input)="onGlobalFilter($event)" placeholder="Global Search" />
+                </p-iconfield>
+            </div>
+        </div>
+    </ng-template>
+
+    <!-- Header Row -->
+    <ng-template pTemplate="header" let-columns>
+        <tr>
+            <th *ngFor="let col of columns" [ttSortableColumn]="col.field" [ttSortableColumnDisabled]="!col.sortable"
+                [style.width]="col.width || 'auto'" ttReorderableColumn
+                [ttReorderableColumnDisabled]="!reorderableColumns" ttResizableColumn
+                (contextmenu)="col.sortable ? onHeaderContextMenu($event, col.field) : null">
+                {{ col.header }}
+                <p-treeTableSortIcon *ngIf="col.sortable" [field]="col.field"></p-treeTableSortIcon>
+            </th>
+        </tr>
+        <!-- Filter Row -->
+        <tr *ngIf="showColumnFilter">
+            <th *ngFor="let col of columns">
+                <!-- Default: text input filter -->
+                <ng-container *ngIf="!col.filterMode || col.filterMode === 'input'">
+                    <input pInputText type="text" (input)="tt.filter($any($event.target).value, col.field, 'contains')"
+                        [placeholder]="'Search ' + col.header" style="width: 100%;" />
+                </ng-container>
+
+                <!-- Dropdown filter -->
+                <ng-container *ngIf="col.filterMode === 'dropdown'">
+                    <p-select [options]="getFilterOptions(col)"
+                        (onChange)="tt.filter($event.value, col.field, 'equals')" optionLabel="label"
+                        optionValue="value" [placeholder]="'Select ' + col.header" [showClear]="true" appendTo="body"
+                        [style]="{ 'width': '100%' }">
+                    </p-select>
+                </ng-container>
+
+                <!-- MultiSelect filter -->
+                <ng-container *ngIf="col.filterMode === 'multiselect'">
+                    <p-multiSelect [options]="getFilterOptions(col)"
+                        (onChange)="tt.filter($event.value, col.field, 'in')" optionLabel="label" optionValue="value"
+                        [placeholder]="'Select ' + col.header" [filter]="true" appendTo="body"
+                        [style]="{ 'width': '100%' }">
+                    </p-multiSelect>
+                </ng-container>
+            </th>
+        </tr>
+    </ng-template>
+
+    <!-- Body Row -->
+    <ng-template pTemplate="body" let-rowNode let-rowData="rowData" let-columns="columns">
+        <tr [ttRow]="rowNode" [ttSelectableRow]="rowNode"
+            [ttContextMenuRow]="contextMenuItems.length > 0 ? rowNode : null">
+            <td *ngFor="let col of columns; let i = index"
+                [ttEditableColumn]="col.editable && editMode && !(i === 0 && selectionMode === 'checkbox') ? rowData : null"
+                [ttEditableColumnField]="col.editable && editMode && !(i === 0 && selectionMode === 'checkbox') ? col.field : ''">
+
+                <!-- First column: tree toggler + checkbox -->
+                <ng-container *ngIf="i === 0">
+                    <p-treeTableToggler [rowNode]="rowNode"></p-treeTableToggler>
+                    <p-treeTableCheckbox *ngIf="selectionMode === 'checkbox'" [value]="rowNode"></p-treeTableCheckbox>
+                </ng-container>
+
+                <!-- Editable cell (disabled on first col with checkbox) -->
+                <ng-container
+                    *ngIf="col.editable && editMode && !(i === 0 && selectionMode === 'checkbox'); else readOnlyCell">
+                    <p-treeTableCellEditor>
+                        <ng-template pTemplate="input">
+                            <input pInputText type="text" [(ngModel)]="rowData[col.field]" style="width: 100%;" />
+                        </ng-template>
+                        <ng-template pTemplate="output">
+                            <span
+                                [class]="(col.textWrap !== undefined ? col.textWrap : textWrap) ? 'wrap-text' : 'truncate-text'"
+                                [title]="rowData[col.field]">
+                                {{ rowData[col.field] }}
+                            </span>
+                        </ng-template>
+                    </p-treeTableCellEditor>
+                </ng-container>
+
+                <!-- Read-only cell -->
+                <ng-template #readOnlyCell>
+                    <span
+                        [class]="(col.textWrap !== undefined ? col.textWrap : textWrap) ? 'wrap-text' : 'truncate-text'"
+                        [title]="rowData[col.field]">
+                        {{ rowData[col.field] }}
+                    </span>
+                </ng-template>
+            </td>
+        </tr>
+    </ng-template>
+
+    <!-- Empty Message -->
+    <ng-template pTemplate="emptymessage" let-columns>
+        <tr>
+            <td [attr.colspan]="columns.length">No data found.</td>
+        </tr>
+    </ng-template>
+
+</p-treeTable>

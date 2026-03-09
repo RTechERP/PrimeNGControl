@@ -3,14 +3,16 @@ import { RouterOutlet } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { CommonModule } from '@angular/common';
-import { MenuItem } from 'primeng/api';
+import { MenuItem, TreeNode } from 'primeng/api';
 import { CustomTable } from './components/custom-table/custom-table';
 import { ColumnDef } from './components/custom-table/column-def.model';
+import { CustomTreeTable } from './components/custom-tree-table/custom-tree-table';
+import { TreeColumnDef } from './components/custom-tree-table/tree-column-def.model';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, CommonModule, ButtonModule, CardModule, CustomTable],
+  imports: [RouterOutlet, CommonModule, ButtonModule, CardModule, CustomTable, CustomTreeTable],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -118,4 +120,118 @@ export class App {
   onRowReorder(event: any) {
     // The table updates its internal order automatically
   }
+
+  // ==========================================
+  // TreeTable 1: File System — Sort, Filter, Selection, Export
+  // ==========================================
+  fileColumns: TreeColumnDef[] = [
+    { field: 'name', header: 'Name', width: '40%', sortable: true },
+    { field: 'size', header: 'Size', width: '20%', sortable: true },
+    { field: 'type', header: 'Type', width: '20%', sortable: true, filterMode: 'dropdown' },
+    { field: 'modified', header: 'Modified', width: '20%', sortable: true },
+  ];
+
+  fileSystem: TreeNode[] = [
+    {
+      data: { name: 'Documents', size: '—', type: 'Folder', modified: '2026-03-01' },
+      expanded: true,
+      children: [
+        {
+          data: { name: 'Work', size: '—', type: 'Folder', modified: '2026-03-01' },
+          expanded: true,
+          children: [
+            { data: { name: 'Report.docx', size: '120 KB', type: 'Document', modified: '2026-02-28' }, leaf: true },
+            { data: { name: 'Proposal.pdf', size: '450 KB', type: 'PDF', modified: '2026-02-25' }, leaf: true },
+            { data: { name: 'Budget.xlsx', size: '85 KB', type: 'Spreadsheet', modified: '2026-03-01' }, leaf: true },
+          ]
+        },
+        {
+          data: { name: 'Personal', size: '—', type: 'Folder', modified: '2026-02-15' },
+          children: [
+            { data: { name: 'Resume.pdf', size: '80 KB', type: 'PDF', modified: '2026-01-10' }, leaf: true },
+            { data: { name: 'CoverLetter.docx', size: '35 KB', type: 'Document', modified: '2026-01-12' }, leaf: true },
+          ]
+        }
+      ]
+    },
+    {
+      data: { name: 'Pictures', size: '—', type: 'Folder', modified: '2026-02-20' },
+      children: [
+        { data: { name: 'Vacation.jpg', size: '3.2 MB', type: 'Image', modified: '2026-02-18' }, leaf: true },
+        { data: { name: 'Family.png', size: '2.1 MB', type: 'Image', modified: '2026-02-20' }, leaf: true },
+        { data: { name: 'Screenshot.png', size: '450 KB', type: 'Image', modified: '2026-03-05' }, leaf: true },
+      ]
+    },
+    {
+      data: { name: 'Downloads', size: '—', type: 'Folder', modified: '2026-03-08' },
+      children: [
+        { data: { name: 'Setup.exe', size: '15 MB', type: 'Application', modified: '2026-03-08' }, leaf: true },
+        { data: { name: 'Driver.zip', size: '8.5 MB', type: 'Archive', modified: '2026-03-06' }, leaf: true },
+      ]
+    }
+  ];
+
+  selectedFile: TreeNode | null = null;
+
+  // ==========================================
+  // TreeTable 2: Organization — Checkbox, Edit, Context Menu
+  // ==========================================
+  orgColumns: TreeColumnDef[] = [
+    { field: 'name', header: 'Name', width: '30%', sortable: true, editable: true },
+    { field: 'role', header: 'Role', width: '25%', editable: true, filterMode: 'dropdown' },
+    { field: 'email', header: 'Email', width: '25%', editable: true },
+    { field: 'status', header: 'Status', width: '20%', filterMode: 'dropdown' },
+  ];
+
+  orgData: TreeNode[] = [
+    {
+      data: { name: 'Engineering', role: 'Department', email: '—', status: 'Active' },
+      expanded: true,
+      children: [
+        {
+          data: { name: 'Frontend Team', role: 'Team', email: '—', status: 'Active' },
+          expanded: true,
+          children: [
+            { data: { name: 'Alice Johnson', role: 'Senior Dev', email: 'alice@company.com', status: 'Active' }, leaf: true },
+            { data: { name: 'Bob Smith', role: 'Junior Dev', email: 'bob@company.com', status: 'Active' }, leaf: true },
+            { data: { name: 'Carol White', role: 'Intern', email: 'carol@company.com', status: 'On Leave' }, leaf: true },
+          ]
+        },
+        {
+          data: { name: 'Backend Team', role: 'Team', email: '—', status: 'Active' },
+          children: [
+            { data: { name: 'Charlie Brown', role: 'Lead', email: 'charlie@company.com', status: 'Active' }, leaf: true },
+            { data: { name: 'Diana Prince', role: 'Senior Dev', email: 'diana@company.com', status: 'Active' }, leaf: true },
+          ]
+        }
+      ]
+    },
+    {
+      data: { name: 'Marketing', role: 'Department', email: '—', status: 'Active' },
+      children: [
+        {
+          data: { name: 'Content Team', role: 'Team', email: '—', status: 'Active' },
+          children: [
+            { data: { name: 'Eve Wilson', role: 'Writer', email: 'eve@company.com', status: 'Active' }, leaf: true },
+            { data: { name: 'Frank Lee', role: 'Designer', email: 'frank@company.com', status: 'Inactive' }, leaf: true },
+          ]
+        }
+      ]
+    },
+    {
+      data: { name: 'HR', role: 'Department', email: '—', status: 'Active' },
+      children: [
+        { data: { name: 'Grace Hopper', role: 'HR Manager', email: 'grace@company.com', status: 'Active' }, leaf: true },
+      ]
+    }
+  ];
+
+  selectedOrgNodes: TreeNode[] = [];
+
+  orgContextMenu: MenuItem[] = [
+    { label: 'View Profile', icon: 'pi pi-eye', command: () => console.log('View:', this.selectedOrgNodes) },
+    { label: 'Edit', icon: 'pi pi-pencil', command: () => console.log('Edit:', this.selectedOrgNodes) },
+    { separator: true },
+    { label: 'Remove', icon: 'pi pi-trash', command: () => console.log('Remove:', this.selectedOrgNodes) },
+  ];
 }

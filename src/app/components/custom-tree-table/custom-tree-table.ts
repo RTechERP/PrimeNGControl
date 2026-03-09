@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter, ViewChild, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TableModule, Table } from 'primeng/table';
+import { TreeTableModule, TreeTable } from 'primeng/treetable';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { MultiSelectModule } from 'primeng/multiselect';
@@ -9,38 +9,38 @@ import { ButtonModule } from 'primeng/button';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { ContextMenu, ContextMenuModule } from 'primeng/contextmenu';
-import { MenuItem } from 'primeng/api';
-import { ColumnDef } from './column-def.model';
+import { MenuItem, TreeNode } from 'primeng/api';
+import { TreeColumnDef } from './tree-column-def.model';
 
 @Component({
-    selector: 'app-custom-table',
+    selector: 'app-custom-tree-table',
     standalone: true,
     imports: [
-        CommonModule, FormsModule, TableModule, InputTextModule,
+        CommonModule, FormsModule, TreeTableModule, InputTextModule,
         SelectModule, MultiSelectModule, ButtonModule, IconFieldModule, InputIconModule,
         ContextMenuModule
     ],
-    templateUrl: './custom-table.html',
-    styleUrl: './custom-table.css'
+    templateUrl: './custom-tree-table.html',
+    styleUrl: './custom-tree-table.css'
 })
-export class CustomTable implements OnChanges {
-    @ViewChild('dt') dt!: Table;
+export class CustomTreeTable implements OnChanges {
+    @ViewChild('tt') tt!: TreeTable;
     @ViewChild('cm') cm!: ContextMenu;
     @ViewChild('hcm') hcm!: ContextMenu;
 
     // --- Data ---
-    private _originalData: any[] = [];
-    private _data: any[] = [];
+    private _originalData: TreeNode[] = [];
+    private _data: TreeNode[] = [];
 
-    @Input() set data(val: any[]) {
-        this._originalData = val ? [...val] : [];
-        this._data = val ? [...val] : [];
+    @Input() set data(val: TreeNode[]) {
+        this._originalData = this.deepCloneNodes(val || []);
+        this._data = val || [];
         this.buildFilterOptionsCache();
     }
-    get data(): any[] {
+    get data(): TreeNode[] {
         return this._data;
     }
-    @Input() columns: ColumnDef[] = [];
+    @Input() columns: TreeColumnDef[] = [];
     @Input() dataKey: string = '';
     @Input() loading: boolean = false;
 
@@ -55,7 +55,6 @@ export class CustomTable implements OnChanges {
     @Input() showGridlines: boolean = true;
     @Input() showColumnFilter: boolean = true;
     @Input() textWrap: boolean = false;
-    @Input() stripedRows: boolean = false;
 
     // --- Scrollable ---
     @Input() scrollable: boolean = false;
@@ -64,13 +63,6 @@ export class CustomTable implements OnChanges {
     // --- Virtual Scrolling ---
     @Input() virtualScroll: boolean = false;
     @Input() virtualScrollItemSize: number = 46;
-
-    // --- Row Grouping ---
-    @Input() rowGroupMode: 'subheader' | 'rowspan' | undefined = undefined;
-    @Input() groupRowsBy: string = '';
-    @Input() rowGroupShowFooter: boolean = false;
-    @Input() expandableRowGroups: boolean = false;
-    expandedRowKeys: { [key: string]: boolean } = {};
 
     // --- Pagination ---
     @Input() paginator: boolean = false;
@@ -81,38 +73,25 @@ export class CustomTable implements OnChanges {
     @Input() sortMode: 'single' | 'multiple' = 'single';
 
     // --- Selection ---
-    @Input() selectionMode: 'single' | 'multiple' | null = null;
+    @Input() selectionMode: 'single' | 'multiple' | 'checkbox' | null = null;
     @Input() selection: any = null;
     @Output() selectionChange = new EventEmitter<any>();
 
     // --- Context Menu ---
     @Input() contextMenuItems: MenuItem[] = [];
-    @Input() selectedContextRow: any = null;
-    @Output() contextMenuSelectionChange = new EventEmitter<any>();
+    selectedContextNode: any = null;
 
     // --- Column Reorder ---
     @Input() reorderableColumns: boolean = false;
 
-    // --- Row Reorder ---
-    @Input() reorderableRows: boolean = false;
-    @Output() rowReorder = new EventEmitter<any>();
-
-    // --- Row Expansion ---
-    @Input() expandable: boolean = false;
-    @Input() rowExpandMode: 'single' | 'multiple' = 'multiple';
-    expandedRows: { [key: string]: boolean } = {};
-
     // --- Cell Editing ---
-    @Input() editMode: 'cell' | 'row' | undefined = undefined;
+    @Input() editMode: 'cell' | undefined = undefined;
 
     // --- CSV Export ---
     @Input() exportable: boolean = false;
     @Input() exportFilename: string = 'download';
 
-    // --- State Persistence ---
-    @Input() stateKey: string | undefined = undefined;
-    @Input() stateStorage: 'session' | 'local' = 'local';
-
+    // --- Header Context Menu ---
     headerMenuItems: MenuItem[] = [
         { label: 'Clear Sort', icon: 'pi pi-sort-alt-slash', command: () => this.clearSort() }
     ];
@@ -122,55 +101,42 @@ export class CustomTable implements OnChanges {
     filterOptionsCache: { [field: string]: { label: string; value: any }[] } = {};
 
     ngOnChanges(changes: SimpleChanges): void {
-        if (changes['columns']) {
+        if (changes['columns'] || changes['data']) {
             this.buildFilterOptionsCache();
         }
-        if ((changes['data'] || changes['groupRowsBy']) && this.expandableRowGroups && this.groupRowsBy) {
-            this.initExpandedGroups();
-        }
-    }
-
-    initExpandedGroups() {
-        if (!this.data || !this.groupRowsBy) return;
-        const groups = new Set(this.data.map((row: any) => row[this.groupRowsBy]));
-        this.expandedRowKeys = {};
-        groups.forEach(g => this.expandedRowKeys[g] = true);
-    }
-
-    toggleGroup(groupValue: string) {
-        if (this.expandedRowKeys[groupValue]) {
-            delete this.expandedRowKeys[groupValue];
-        } else {
-            this.expandedRowKeys[groupValue] = true;
-        }
-        this.expandedRowKeys = { ...this.expandedRowKeys };
-    }
-
-    isGroupExpanded(groupValue: string): boolean {
-        return !!this.expandedRowKeys[groupValue];
     }
 
     private buildFilterOptionsCache(): void {
         this.filterOptionsCache = {};
+        const flatData = this.flattenNodes(this.data);
         for (const col of this.columns) {
             if (col.filterMode === 'dropdown' || col.filterMode === 'multiselect') {
                 if (col.filterOptions && col.filterOptions.length > 0) {
                     this.filterOptionsCache[col.field] = col.filterOptions;
                 } else {
-                    const unique = [...new Set(this.data.map(row => row[col.field]).filter(v => v != null))];
+                    const unique = [...new Set(flatData.map(d => d[col.field]).filter(v => v != null))];
                     this.filterOptionsCache[col.field] = unique.map(v => ({ label: String(v), value: v }));
                 }
             }
         }
     }
 
-    getFilterOptions(col: ColumnDef): { label: string; value: any }[] {
+    private flattenNodes(nodes: TreeNode[]): any[] {
+        let result: any[] = [];
+        for (const node of nodes) {
+            if (node.data) result.push(node.data);
+            if (node.children) result = result.concat(this.flattenNodes(node.children));
+        }
+        return result;
+    }
+
+    getFilterOptions(col: TreeColumnDef): { label: string; value: any }[] {
         return this.filterOptionsCache[col.field] || [];
     }
 
     onGlobalFilter(event: Event) {
         const value = (event.target as HTMLInputElement).value;
-        this.dt.filterGlobal(value, 'contains');
+        this.tt.filterGlobal(value, 'contains');
     }
 
     onSelectionChange(value: any) {
@@ -179,18 +145,7 @@ export class CustomTable implements OnChanges {
     }
 
     onContextMenuSelect(event: any) {
-        this.selectedContextRow = event.data;
-        this.contextMenuSelectionChange.emit(this.selectedContextRow);
-
-        if (this.selectionMode === 'single') {
-            this.selection = event.data;
-            this.selectionChange.emit(this.selection);
-        } else if (this.selectionMode === 'multiple') {
-            if (!this.selection || !this.selection.includes(event.data)) {
-                this.selection = [event.data];
-                this.selectionChange.emit(this.selection);
-            }
-        }
+        this.selectedContextNode = event.node;
     }
 
     onHeaderContextMenu(event: any, field: string) {
@@ -201,26 +156,44 @@ export class CustomTable implements OnChanges {
     }
 
     clearSort() {
-        this.dt.sortOrder = 0;
-        this.dt.sortField = undefined;
-        this.dt.multiSortMeta = [];
+        this.tt.sortOrder = 0;
+        this.tt.sortField = undefined;
+        this.tt.multiSortMeta = [];
         this.activeSortField = null;
-        this._data = [...this._originalData];
-        this.dt.value = this._data;
-        if (this.dt.tableService) {
-            this.dt.tableService.onSort(null);
+        this._data = this.deepCloneNodes(this._originalData);
+        this.tt.value = this._data;
+        if (this.tt.tableService) {
+            this.tt.tableService.onSort(null);
         }
     }
 
-    onRowReorder(event: any) {
-        this.rowReorder.emit(event);
-    }
-
-    onCellEditComplete(event: any) {
-        // Cell edit is handled inline by PrimeNG — just let the model update
+    private deepCloneNodes(nodes: TreeNode[]): TreeNode[] {
+        return nodes.map(node => ({
+            ...node,
+            data: node.data ? { ...node.data } : undefined,
+            children: node.children ? this.deepCloneNodes(node.children) : undefined
+        }));
     }
 
     exportCSV() {
-        this.dt.exportCSV();
+        const flatData = this.flattenNodes(this.data);
+        if (!flatData.length || !this.columns.length) return;
+
+        const headers = this.columns.map(c => c.header);
+        const rows = flatData.map(row =>
+            this.columns.map(c => {
+                const val = row[c.field];
+                const str = val != null ? String(val) : '';
+                return '"' + str.replace(/"/g, '""') + '"';
+            }).join(',')
+        );
+
+        const csv = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = (this.exportFilename || 'download') + '.csv';
+        link.click();
+        URL.revokeObjectURL(link.href);
     }
 }
