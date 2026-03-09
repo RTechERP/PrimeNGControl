@@ -1,36 +1,50 @@
 <p-contextMenu #cm [model]="contextMenuItems"></p-contextMenu>
 <p-contextMenu #hcm [model]="headerMenuItems"></p-contextMenu>
 
-<p-table #dt [value]="data" [tableStyle]="{ 'min-width': '50rem' }" [resizableColumns]="resizable"
+<p-table #dt [value]="data" [columns]="columns" [tableStyle]="{ 'min-width': '50rem' }" [resizableColumns]="resizable"
     [columnResizeMode]="resizeMode" [showGridlines]="showGridlines" styleClass="p-datatable-gridlines p-datatable-sm"
     [globalFilterFields]="globalFilterFields" [scrollable]="scrollable" [scrollHeight]="scrollable ? scrollHeight : ''"
     [paginator]="paginator" [rows]="rows" [rowsPerPageOptions]="rowsPerPageOptions" [rowGroupMode]="rowGroupMode"
     [groupRowsBy]="groupRowsBy" [sortMode]="sortMode" [selectionMode]="selectionMode" [(selection)]="selection"
     (selectionChange)="onSelectionChange($event)" [dataKey]="dataKey" [loading]="loading"
     [contextMenu]="contextMenuItems.length > 0 ? cm : null" [(contextMenuSelection)]="selectedContextRow"
-    (onContextMenuSelect)="onContextMenuSelect($event)" [rowHover]="true">
+    (onContextMenuSelect)="onContextMenuSelect($event)" [rowHover]="true" [stripedRows]="stripedRows"
+    [reorderableColumns]="reorderableColumns" (onRowReorder)="onRowReorder($event)" [virtualScroll]="virtualScroll"
+    [virtualScrollItemSize]="virtualScrollItemSize" [stateKey]="stateKey" [stateStorage]="stateStorage"
+    [expandedRowKeys]="expandable ? expandedRows : expandedRowKeys" [rowExpandMode]="rowExpandMode"
+    [editMode]="editMode || 'cell'" [exportFilename]="exportFilename">
 
-    <!-- Caption with Global Search -->
-    <ng-template pTemplate="caption" *ngIf="title || showGlobalFilter">
+    <!-- Caption with Global Search + Export -->
+    <ng-template pTemplate="caption" *ngIf="title || showGlobalFilter || exportable">
         <div class="flex justify-content-between align-items-center">
             <h4 class="m-0">{{ title }}</h4>
-            <p-iconfield *ngIf="showGlobalFilter">
-                <p-inputicon styleClass="pi pi-search" />
-                <input pInputText type="text" (input)="onGlobalFilter($event)" placeholder="Global Search" />
-            </p-iconfield>
+            <div class="flex gap-2 align-items-center">
+                <p-button *ngIf="exportable" icon="pi pi-download" label="Export CSV" severity="success" [text]="true"
+                    (click)="exportCSV()">
+                </p-button>
+                <p-iconfield *ngIf="showGlobalFilter">
+                    <p-inputicon styleClass="pi pi-search" />
+                    <input pInputText type="text" (input)="onGlobalFilter($event)" placeholder="Global Search" />
+                </p-iconfield>
+            </div>
         </div>
     </ng-template>
 
     <!-- Header Row: Titles -->
     <ng-template pTemplate="header">
         <tr>
+            <!-- Drag handle header for row reorder -->
+            <th *ngIf="reorderableRows" style="width: 3rem"></th>
+            <!-- Expand toggle header -->
+            <th *ngIf="expandable" style="width: 4rem"></th>
             <!-- Checkbox header for multiple selection -->
             <th *ngIf="selectionMode === 'multiple'" style="width: 3rem" pFrozenColumn [frozen]="true">
                 <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
             </th>
             <th *ngFor="let col of columns" pResizableColumn [pSortableColumn]="col.field"
                 [pSortableColumnDisabled]="!col.sortable" pFrozenColumn [frozen]="col.frozen || false"
-                [alignFrozen]="col.alignFrozen || 'left'" [style.width]="col.width || 'auto'"
+                [alignFrozen]="col.alignFrozen || 'left'" [style.width]="col.width || 'auto'" pReorderableColumn
+                [pReorderableColumnDisabled]="!reorderableColumns"
                 (contextmenu)="col.sortable ? onHeaderContextMenu($event, col.field) : null">
                 {{ col.header }}
                 <p-sortIcon *ngIf="col.sortable" [field]="col.field"></p-sortIcon>
@@ -38,6 +52,8 @@
         </tr>
         <!-- Filter Row -->
         <tr *ngIf="showColumnFilter">
+            <th *ngIf="reorderableRows"></th>
+            <th *ngIf="expandable"></th>
             <!-- Empty cell for checkbox column -->
             <th *ngIf="selectionMode === 'multiple'" pFrozenColumn [frozen]="true"></th>
             <th *ngFor="let col of columns" pFrozenColumn [frozen]="col.frozen || false"
@@ -83,7 +99,8 @@
     <!-- Group Header (for subheader mode) -->
     <ng-template pTemplate="groupheader" let-rowData let-rowIndex="rowIndex">
         <tr *ngIf="rowGroupMode === 'subheader'" pRowGroupHeader>
-            <td [attr.colspan]="columns.length + (selectionMode === 'multiple' ? 1 : 0)">
+            <td
+                [attr.colspan]="columns.length + (selectionMode === 'multiple' ? 1 : 0) + (expandable ? 1 : 0) + (reorderableRows ? 1 : 0)">
                 <p-button *ngIf="expandableRowGroups" (click)="toggleGroup(rowData[groupRowsBy])" [text]="true"
                     [rounded]="true" severity="secondary"
                     [icon]="isGroupExpanded(rowData[groupRowsBy]) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
@@ -95,18 +112,65 @@
     </ng-template>
 
     <!-- Body Row -->
-    <ng-template pTemplate="body" let-rowData let-rowIndex="rowIndex">
+    <ng-template pTemplate="body" let-rowData let-rowIndex="rowIndex" let-expanded="expanded">
         <tr *ngIf="!expandableRowGroups || isGroupExpanded(rowData[groupRowsBy])" [pSelectableRow]="rowData"
-            [pSelectableRowIndex]="rowIndex" [pContextMenuRow]="contextMenuItems.length > 0 ? rowData : null">
+            [pSelectableRowIndex]="rowIndex" [pContextMenuRow]="contextMenuItems.length > 0 ? rowData : null"
+            [pReorderableRow]="rowIndex">
+            <!-- Drag handle for row reorder -->
+            <td *ngIf="reorderableRows">
+                <span class="pi pi-bars" pReorderableRowHandle style="cursor: move;"></span>
+            </td>
+            <!-- Expand toggle -->
+            <td *ngIf="expandable">
+                <p-button type="button" [pRowToggler]="rowData" [text]="true" [rounded]="true"
+                    [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'">
+                </p-button>
+            </td>
             <!-- Checkbox for multiple selection -->
             <td *ngIf="selectionMode === 'multiple'" pFrozenColumn [frozen]="true">
                 <p-tableCheckbox [value]="rowData"></p-tableCheckbox>
             </td>
+            <!-- Data columns -->
             <td *ngFor="let col of columns" pFrozenColumn [frozen]="col.frozen || false"
-                [alignFrozen]="col.alignFrozen || 'left'">
-                <div [class]="(col.textWrap !== undefined ? col.textWrap : textWrap) ? 'wrap-text' : 'truncate-text'"
-                    [title]="rowData[col.field]">
-                    {{ rowData[col.field] }}
+                [alignFrozen]="col.alignFrozen || 'left'" [pEditableColumn]="col.editable && editMode ? rowData : null"
+                [pEditableColumnField]="col.editable && editMode ? col.field : ''">
+                <!-- Editable cell -->
+                <ng-container *ngIf="col.editable && editMode; else readOnlyCell">
+                    <p-cellEditor>
+                        <ng-template pTemplate="input">
+                            <input pInputText type="text" [(ngModel)]="rowData[col.field]" style="width: 100%;" />
+                        </ng-template>
+                        <ng-template pTemplate="output">
+                            <div [class]="(col.textWrap !== undefined ? col.textWrap : textWrap) ? 'wrap-text' : 'truncate-text'"
+                                [title]="rowData[col.field]">
+                                {{ rowData[col.field] }}
+                            </div>
+                        </ng-template>
+                    </p-cellEditor>
+                </ng-container>
+                <!-- Read-only cell -->
+                <ng-template #readOnlyCell>
+                    <div [class]="(col.textWrap !== undefined ? col.textWrap : textWrap) ? 'wrap-text' : 'truncate-text'"
+                        [title]="rowData[col.field]">
+                        {{ rowData[col.field] }}
+                    </div>
+                </ng-template>
+            </td>
+        </tr>
+    </ng-template>
+
+    <!-- Row Expansion Template -->
+    <ng-template pTemplate="rowexpansion" let-rowData *ngIf="expandable">
+        <tr>
+            <td
+                [attr.colspan]="columns.length + (selectionMode === 'multiple' ? 1 : 0) + (expandable ? 1 : 0) + (reorderableRows ? 1 : 0)">
+                <div class="p-3">
+                    <div class="flex flex-column gap-2">
+                        <div *ngFor="let col of columns" class="flex gap-2">
+                            <strong>{{ col.header }}:</strong>
+                            <span>{{ rowData[col.field] }}</span>
+                        </div>
+                    </div>
                 </div>
             </td>
         </tr>
@@ -125,7 +189,9 @@
     <!-- Empty Message -->
     <ng-template pTemplate="emptymessage">
         <tr>
-            <td [attr.colspan]="columns.length + (selectionMode === 'multiple' ? 1 : 0)">No data found.</td>
+            <td
+                [attr.colspan]="columns.length + (selectionMode === 'multiple' ? 1 : 0) + (expandable ? 1 : 0) + (reorderableRows ? 1 : 0)">
+                No data found.</td>
         </tr>
     </ng-template>
 

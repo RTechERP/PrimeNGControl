@@ -18,7 +18,7 @@ export class App {
   title = 'TestAllPrimeNG';
 
   // ==========================================
-  // Products Table: Frozen + Sort + Context Menu
+  // Table 1: Products — Frozen, Sort, Context Menu, Expansion, Export, Striped
   // ==========================================
   productColumns: ColumnDef[] = [
     { field: 'code', header: 'Code', width: '150px', sortable: true, frozen: true },
@@ -30,7 +30,7 @@ export class App {
   ];
 
   products = [
-    { id: '1000', code: 'f230fh0g3', name: 'Bamboo Watch Bamboo WatchBamboo WatchBamboo WatchBamboo WatchBamboo WatchBamboo WatchBamboo WatchBamboo WatchBamboo WatchBamboo WatchBamboo WatchBamboo WatchBamboo Watch', category: 'Accessories', quantity: 24, price: 65, inventoryStatus: 'INSTOCK' },
+    { id: '1000', code: 'f230fh0g3', name: 'Bamboo Watch (Premium Edition with Extra Long Name for Testing)', category: 'Accessories', quantity: 24, price: 65, inventoryStatus: 'INSTOCK' },
     { id: '1001', code: 'nvklal433', name: 'Black Watch', category: 'Accessories', quantity: 61, price: 72, inventoryStatus: 'OUTOFSTOCK' },
     { id: '1002', code: 'zz21cz3c1', name: 'Blue Band', category: 'Fitness', quantity: 2, price: 79, inventoryStatus: 'LOWSTOCK' },
     { id: '1003', code: '244wzx786', name: 'Gold Watch', category: 'Accessories', quantity: 73, price: 42, inventoryStatus: 'INSTOCK' },
@@ -40,10 +40,8 @@ export class App {
     { id: '1007', code: 'mbvjkgip5', name: 'Protein Bar', category: 'Nutrition', quantity: 100, price: 5, inventoryStatus: 'INSTOCK' },
   ];
 
-  // Real data array that gets bound to the template
   activeProducts: any[] = [];
   isProductsLoading: boolean = true;
-
   selectedProduct: any = null;
 
   productContextMenu: MenuItem[] = [
@@ -53,12 +51,7 @@ export class App {
     { label: 'Delete', icon: 'pi pi-trash', command: () => alert('Delete: ' + this.selectedProduct?.name) },
   ];
 
-  onProductSelect(product: any) {
-    this.selectedProduct = product;
-  }
-
   ngOnInit() {
-    // Simulate API fetch delay of 2 seconds
     setTimeout(() => {
       this.activeProducts = [...this.products];
       this.isProductsLoading = false;
@@ -66,7 +59,7 @@ export class App {
   }
 
   // ==========================================
-  // Users Table: Multiple Selection + Sort
+  // Table 2: Users — Row Grouping, Multi-Select, Expandable Groups
   // ==========================================
   userColumns: ColumnDef[] = [
     { field: 'name', header: 'Full Name', width: '25%', sortable: true },
@@ -92,11 +85,37 @@ export class App {
     { id: 13, name: 'Mike Ross', email: 'mike@example.com', role: 'User', department: 'Legal', status: 'Active' },
     { id: 14, name: 'Nancy Drew', email: 'nancy@example.com', role: 'Editor', department: 'Investigation', status: 'Active' },
     { id: 15, name: 'Oscar Isaac', email: 'oscar@example.com', role: 'User', department: 'Acting', status: 'Active' },
-  ].sort((a, b) => a.department.localeCompare(b.department)); // Sort by department for row grouping
+  ].sort((a, b) => a.department.localeCompare(b.department));
 
   selectedUsers: any[] = [];
 
   onButtonClick() {
     alert('Selected users: ' + this.selectedUsers.map((u: any) => u.name).join(', '));
+  }
+
+  // ==========================================
+  // Table 3: Tasks — Cell Editing, Row Reorder, Column Reorder, Export
+  // ==========================================
+  taskColumns: ColumnDef[] = [
+    { field: 'title', header: 'Task Title', width: '30%', editable: true },
+    { field: 'assignee', header: 'Assignee', width: '20%', editable: true },
+    { field: 'priority', header: 'Priority', width: '15%', editable: true },
+    { field: 'status', header: 'Status', width: '15%', editable: true },
+    { field: 'dueDate', header: 'Due Date', width: '20%', editable: true },
+  ];
+
+  tasks = [
+    { id: 1, title: 'Design Landing Page', assignee: 'Alice', priority: 'High', status: 'In Progress', dueDate: '2026-03-15' },
+    { id: 2, title: 'Implement User Auth', assignee: 'Bob', priority: 'Critical', status: 'To Do', dueDate: '2026-03-10' },
+    { id: 3, title: 'Write Unit Tests', assignee: 'Charlie', priority: 'Medium', status: 'To Do', dueDate: '2026-03-20' },
+    { id: 4, title: 'Deploy to Staging', assignee: 'Diana', priority: 'High', status: 'Done', dueDate: '2026-03-08' },
+    { id: 5, title: 'Fix CSS Bug', assignee: 'Eve', priority: 'Low', status: 'In Progress', dueDate: '2026-03-12' },
+    { id: 6, title: 'Database Migration', assignee: 'Frank', priority: 'Critical', status: 'To Do', dueDate: '2026-03-09' },
+    { id: 7, title: 'API Documentation', assignee: 'Grace', priority: 'Medium', status: 'Done', dueDate: '2026-03-18' },
+    { id: 8, title: 'Performance Audit', assignee: 'Hank', priority: 'High', status: 'In Progress', dueDate: '2026-03-22' },
+  ];
+
+  onRowReorder(event: any) {
+    // The table updates its internal order automatically
   }
 }

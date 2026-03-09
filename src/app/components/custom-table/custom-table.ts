@@ -42,7 +42,7 @@ export class CustomTable implements OnChanges {
     }
     @Input() columns: ColumnDef[] = [];
     @Input() dataKey: string = '';
-    @Input() loading: boolean = false; // New property for loading state
+    @Input() loading: boolean = false;
 
     // --- Caption ---
     @Input() title: string = '';
@@ -54,11 +54,16 @@ export class CustomTable implements OnChanges {
     @Input() resizeMode: string = 'fit';
     @Input() showGridlines: boolean = true;
     @Input() showColumnFilter: boolean = true;
-    @Input() textWrap: boolean = false; // Global flag for text wrapping
+    @Input() textWrap: boolean = false;
+    @Input() stripedRows: boolean = false;
 
     // --- Scrollable ---
     @Input() scrollable: boolean = false;
     @Input() scrollHeight: string = '400px';
+
+    // --- Virtual Scrolling ---
+    @Input() virtualScroll: boolean = false;
+    @Input() virtualScrollItemSize: number = 46;
 
     // --- Row Grouping ---
     @Input() rowGroupMode: 'subheader' | 'rowspan' | undefined = undefined;
@@ -85,6 +90,29 @@ export class CustomTable implements OnChanges {
     @Input() selectedContextRow: any = null;
     @Output() contextMenuSelectionChange = new EventEmitter<any>();
 
+    // --- Column Reorder ---
+    @Input() reorderableColumns: boolean = false;
+
+    // --- Row Reorder ---
+    @Input() reorderableRows: boolean = false;
+    @Output() rowReorder = new EventEmitter<any>();
+
+    // --- Row Expansion ---
+    @Input() expandable: boolean = false;
+    @Input() rowExpandMode: 'single' | 'multiple' = 'multiple';
+    expandedRows: { [key: string]: boolean } = {};
+
+    // --- Cell Editing ---
+    @Input() editMode: 'cell' | 'row' | undefined = undefined;
+
+    // --- CSV Export ---
+    @Input() exportable: boolean = false;
+    @Input() exportFilename: string = 'download';
+
+    // --- State Persistence ---
+    @Input() stateKey: string | undefined = undefined;
+    @Input() stateStorage: 'session' | 'local' = 'local';
+
     headerMenuItems: MenuItem[] = [
         { label: 'Clear Sort', icon: 'pi pi-sort-alt-slash', command: () => this.clearSort() }
     ];
@@ -97,7 +125,6 @@ export class CustomTable implements OnChanges {
         if (changes['columns']) {
             this.buildFilterOptionsCache();
         }
-        // Initialize all row groups as expanded when data or groupRowsBy changes
         if ((changes['data'] || changes['groupRowsBy']) && this.expandableRowGroups && this.groupRowsBy) {
             this.initExpandedGroups();
         }
@@ -116,7 +143,6 @@ export class CustomTable implements OnChanges {
         } else {
             this.expandedRowKeys[groupValue] = true;
         }
-        // Trigger change detection by reassigning the object
         this.expandedRowKeys = { ...this.expandedRowKeys };
     }
 
@@ -156,12 +182,10 @@ export class CustomTable implements OnChanges {
         this.selectedContextRow = event.data;
         this.contextMenuSelectionChange.emit(this.selectedContextRow);
 
-        // Ensure the right-clicked row becomes the focused selection for actions
         if (this.selectionMode === 'single') {
             this.selection = event.data;
             this.selectionChange.emit(this.selection);
         } else if (this.selectionMode === 'multiple') {
-            // For multiple selection, if the clicked row isn't already selected, select it exclusively
             if (!this.selection || !this.selection.includes(event.data)) {
                 this.selection = [event.data];
                 this.selectionChange.emit(this.selection);
@@ -181,13 +205,21 @@ export class CustomTable implements OnChanges {
         this.dt.sortField = undefined;
         this.dt.multiSortMeta = [];
         this.activeSortField = null;
-
-        // Restore original order.
         this._data = [...this._originalData];
-
-        // Notify the table service to update the sort icons in the UI headers
         if (this.dt.tableService) {
             this.dt.tableService.onSort(null);
         }
+    }
+
+    onRowReorder(event: any) {
+        this.rowReorder.emit(event);
+    }
+
+    onCellEditComplete(event: any) {
+        // Cell edit is handled inline by PrimeNG — just let the model update
+    }
+
+    exportCSV() {
+        this.dt.exportCSV();
     }
 }

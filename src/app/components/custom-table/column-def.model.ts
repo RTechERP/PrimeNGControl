@@ -19,4 +19,6 @@ export interface ColumnDef {
     alignFrozen?: 'left' | 'right';
     /** Whether to wrap text or truncate with ellipsis. Default: false (truncate) */
     textWrap?: boolean;
+    /** Enable inline editing for this column */
+    editable?: boolean;
 }
