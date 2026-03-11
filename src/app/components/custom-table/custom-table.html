@@ -44,8 +44,8 @@
             <th *ngFor="let col of columns" pResizableColumn [pSortableColumn]="col.field"
                 [pSortableColumnDisabled]="!col.sortable" pFrozenColumn [frozen]="col.frozen || false"
                 [alignFrozen]="col.alignFrozen || 'left'" [style.width]="col.width || 'auto'" pReorderableColumn
-                [pReorderableColumnDisabled]="!reorderableColumns"
-                (contextmenu)="col.sortable ? onHeaderContextMenu($event, col.field) : null">
+                [pReorderableColumnDisabled]="!reorderableColumns" [ngClass]="col.cssClass"
+                (contextmenu)="onHeaderContextMenu($event, col.field)">
                 {{ col.header }}
                 <p-sortIcon *ngIf="col.sortable" [field]="col.field"></p-sortIcon>
             </th>
@@ -132,28 +132,68 @@
             </td>
             <!-- Data columns -->
             <td *ngFor="let col of columns" pFrozenColumn [frozen]="col.frozen || false"
-                [alignFrozen]="col.alignFrozen || 'left'" [pEditableColumn]="col.editable && editMode ? rowData : null"
-                [pEditableColumnField]="col.editable && editMode ? col.field : ''">
-                <!-- Editable cell -->
-                <ng-container *ngIf="col.editable && editMode; else readOnlyCell">
-                    <p-cellEditor>
-                        <ng-template pTemplate="input">
-                            <input pInputText type="text" [(ngModel)]="rowData[col.field]" style="width: 100%;" />
-                        </ng-template>
-                        <ng-template pTemplate="output">
-                            <div [class]="(col.textWrap !== undefined ? col.textWrap : textWrap) ? 'wrap-text' : 'truncate-text'"
-                                [title]="rowData[col.field]">
-                                {{ rowData[col.field] }}
-                            </div>
-                        </ng-template>
-                    </p-cellEditor>
-                </ng-container>
-                <!-- Read-only cell -->
-                <ng-template #readOnlyCell>
-                    <div [class]="(col.textWrap !== undefined ? col.textWrap : textWrap) ? 'wrap-text' : 'truncate-text'"
-                        [title]="rowData[col.field]">
-                        {{ rowData[col.field] }}
+                [alignFrozen]="col.alignFrozen || 'left'"
+                [pEditableColumn]="col.editable && editMode && col.editType !== 'table-lookup' ? rowData : null"
+                [pEditableColumnField]="col.editable && editMode && col.editType !== 'table-lookup' ? col.field : ''"
+                [ngClass]="col.cssClass"
+                (click)="col.editType === 'table-lookup' && col.editable && editMode ? openTableLookup($event, col, rowData) : null">
+
+                <!-- Table Lookup: click cell to open popup directly -->
+                <ng-container *ngIf="col.editType === 'table-lookup' && col.editable && editMode; else normalCell">
+                    <div class="table-lookup-cell" [title]="formatValue(col, rowData)">
+                        <span class="table-lookup-value">{{ formatValue(col, rowData) || 'Chọn...' }}</span>
+                        <i class="pi pi-chevron-down table-lookup-chevron"></i>
                     </div>
+                </ng-container>
+
+                <ng-template #normalCell>
+                    <!-- Editable cell (non table-lookup) -->
+                    <ng-container *ngIf="col.editable && editMode; else readOnlyCell">
+                        <p-cellEditor>
+                            <ng-template pTemplate="input">
+                                <!-- Lookup: searchable dropdown -->
+                                <ng-container *ngIf="col.editType === 'lookup'; else dateOrDefault">
+                                    <p-select [options]="col.editOptions || []" [(ngModel)]="rowData[col.field]"
+                                        optionLabel="label" optionValue="value" [filter]="true"
+                                        filterPlaceholder="Search..." appendTo="body" [style]="{ 'width': '100%' }">
+                                    </p-select>
+                                </ng-container>
+                                <ng-template #dateOrDefault>
+                                    <!-- Date picker -->
+                                    <ng-container *ngIf="col.editType === 'date'; else textareaOrInput">
+                                        <p-datepicker [(ngModel)]="rowData[col.field]" [showIcon]="true"
+                                            [showOnFocus]="false" appendTo="body"
+                                            [dateFormat]="col.editDateFormat || 'dd/mm/yy'"
+                                            [showTime]="col.editShowTime || false"
+                                            [style]="{ 'width': '100%' }">
+                                        </p-datepicker>
+                                    </ng-container>
+                                    <ng-template #textareaOrInput>
+                                        <textarea *ngIf="col.editType === 'textarea'; else defaultInput" pTextarea
+                                            [(ngModel)]="rowData[col.field]" [autoResize]="true" rows="3"
+                                            class="w-full"></textarea>
+                                        <ng-template #defaultInput>
+                                            <input pInputText [type]="col.editType === 'number' ? 'number' : 'text'"
+                                                [(ngModel)]="rowData[col.field]" style="width: 100%;" />
+                                        </ng-template>
+                                    </ng-template>
+                                </ng-template>
+                            </ng-template>
+                            <ng-template pTemplate="output">
+                                <div [class]="(col.textWrap !== undefined ? col.textWrap : textWrap) ? 'wrap-text' : 'truncate-text'"
+                                    [title]="rowData[col.field]">
+                                    {{ formatValue(col, rowData) }}
+                                </div>
+                            </ng-template>
+                        </p-cellEditor>
+                    </ng-container>
+                    <!-- Read-only cell -->
+                    <ng-template #readOnlyCell>
+                        <div [class]="(col.textWrap !== undefined ? col.textWrap : textWrap) ? 'wrap-text' : 'truncate-text'"
+                            [title]="rowData[col.field]">
+                            {{ formatValue(col, rowData) }}
+                        </div>
+                    </ng-template>
                 </ng-template>
             </td>
         </tr>
@@ -196,3 +236,40 @@
     </ng-template>
 
 </p-table>
+
+<!-- Table Lookup Popup -->
+<p-popover #lookupPanel appendTo="body" [style]="{ 'min-width': '400px', 'max-width': '700px' }">
+    <div class="flex flex-column gap-2 p-1">
+        <div class="flex align-items-center gap-2">
+            <p-iconfield class="flex-1">
+                <p-inputicon styleClass="pi pi-search" />
+                <input pInputText type="text" [(ngModel)]="lookupSearchText" (input)="filterLookupData()"
+                    placeholder="Tìm kiếm..." style="width: 100%;" />
+            </p-iconfield>
+            <button pButton icon="pi pi-times" class="p-button-sm p-button-danger p-button-text"
+                (click)="lookupPanel.hide()"></button>
+        </div>
+        <div style="max-height: 300px; overflow-y: auto;">
+            <table class="lookup-table">
+                <thead>
+                    <tr>
+                        <th *ngFor="let lc of activeLookupCol?.editLookupConfig?.columns"
+                            [style.width]="lc.width || 'auto'">{{ lc.header }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let row of lookupFilteredData" class="lookup-row"
+                        [class.lookup-row-selected]="isLookupRowSelected(row)" (click)="selectLookupRow(row)">
+                        <td *ngFor="let lc of activeLookupCol?.editLookupConfig?.columns">{{ row[lc.field] }}</td>
+                    </tr>
+                    <tr *ngIf="lookupFilteredData.length === 0">
+                        <td [attr.colspan]="activeLookupCol?.editLookupConfig?.columns?.length"
+                            class="text-center text-500">
+                            Không tìm thấy kết quả
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</p-popover>

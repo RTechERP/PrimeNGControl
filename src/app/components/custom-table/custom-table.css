@@ -44,3 +44,87 @@
     display: block;
     width: 100%;
 }
+
+/* Table Lookup Popup */
+.lookup-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.lookup-table th {
+    background: var(--p-surface-100, #f1f5f9);
+    color: var(--p-surface-700, #334155);
+    font-weight: 600;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border-bottom: 2px solid var(--p-surface-300, #cbd5e1);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.lookup-table td {
+    padding: 0.4rem 0.75rem;
+    border-bottom: 1px solid var(--p-surface-200, #e2e8f0);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.lookup-row {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.lookup-row:hover {
+    background: var(--p-primary-50, rgba(59, 130, 246, 0.08));
+}
+
+.lookup-row:active {
+    background: var(--p-primary-100, rgba(59, 130, 246, 0.15));
+}
+
+/* Table Lookup Cell (select-like appearance) */
+.table-lookup-cell {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--p-surface-300, #cbd5e1);
+    border-radius: 6px;
+    background: var(--p-surface-0, #fff);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    min-height: 2rem;
+}
+
+.table-lookup-cell:hover {
+    border-color: var(--p-primary-400, #60a5fa);
+    box-shadow: 0 0 0 1px var(--p-primary-200, rgba(59, 130, 246, 0.2));
+}
+
+.table-lookup-value {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.table-lookup-chevron {
+    font-size: 0.7rem;
+    color: var(--p-surface-500, #64748b);
+    margin-left: 0.25rem;
+    flex-shrink: 0;
+}
+
+/* Selected row in lookup popup */
+.lookup-row-selected {
+    background: var(--p-primary-50, rgba(59, 130, 246, 0.1));
+    font-weight: 600;
+}
+
+.lookup-row-selected td {
+    color: var(--p-primary-700, #1d4ed8);
+}

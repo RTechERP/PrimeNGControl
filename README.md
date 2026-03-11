@@ -39,6 +39,12 @@ interface ColumnDef {
   alignFrozen?: string;      // Hướng đóng băng: 'left' | 'right'
   textWrap?: boolean;        // Wrap text hay truncate (mỗi cột riêng)
   editable?: boolean;        // Cho phép sửa inline
+  cssClass?: string;         // Class CSS cho cả header và cell
+  format?: (v, row) => str;  // Hàm format hiển thị tùy chỉnh
+  editType?: string;         // 'text'|'number'|'date'|'lookup'|'table-lookup'|'textarea'
+  editDateFormat?: string;   // Định dạng PrimeNG cho date picker (vd: 'dd/mm/yy')
+  editShowTime?: boolean;    // Hiện bộ chọn giờ cho date picker
+  editLookupConfig?: any;    // Cấu hình cho table-lookup
 }
 ```
 
@@ -397,32 +403,66 @@ Click nút ▶ để xem chi tiết bên dưới mỗi dòng.
 
 ---
 
-### 16. ✏️ Sửa trực tiếp trong ô (Cell Editing)
+### 16. ✏️ Sửa trực tiếp (Inline Editing Types)
 
-```html
-<app-custom-table
-  editMode="cell"
-  dataKey="id">
-</app-custom-table>
-```
+Component hỗ trợ nhiều loại editor qua thuộc tính `editType`:
 
+#### Bùn/Text/Number (Mặc định):
 ```typescript
-columns: ColumnDef[] = [
-  { field: 'name', header: 'Tên', editable: true },
-  { field: 'price', header: 'Giá', editable: true },
-  { field: 'code', header: 'Mã', editable: false }, // Không cho sửa
-];
+{ field: 'name', header: 'Tên', editable: true, editType: 'text' }
+{ field: 'age', header: 'Tuổi', editable: true, editType: 'number' }
 ```
 
-**Cách sử dụng:**
-1. Click vào ô có `editable: true` → chuyển sang chế độ sửa
-2. Nhập giá trị mới
-3. Nhấn **Enter** hoặc click ra ngoài → lưu
-4. Nhấn **Escape** → huỷ thay đổi
+#### 📅 Date Picker:
+Cho phép gõ trực tiếp hoặc chọn từ lịch.
+```typescript
+{ 
+  field: 'dueDate', header: 'Ngày hết hạn', 
+  editable: true, 
+  editType: 'date',
+  editDateFormat: 'dd/mm/yy', // Định dạng hiển thị
+  editShowTime: true          // Hiện bộ chọn giờ (nếu cần)
+}
+```
+
+#### 📝 Textarea:
+Dùng cho văn bản dài, tự động co giãn chiều cao.
+```typescript
+{ field: 'notes', header: 'Ghi chú', editable: true, editType: 'textarea' }
+```
+
+#### 🔍 Table-Lookup:
+Mở một popup bảng để chọn dữ liệu phức tạp.
+```typescript
+{
+  field: 'projectId', header: 'Dự án', 
+  editable: true, 
+  editType: 'table-lookup',
+  editLookupConfig: {
+    data: projectsData,       // Mảng dữ liệu nguồn
+    columns: [                // Các cột hiển thị trong popup
+      { field: 'code', header: 'Mã' },
+      { field: 'name', header: 'Tên DA' }
+    ],
+    valueField: 'id',         // Field lấy giá trị để lưu
+    displayField: 'name'      // Field hiển thị lại sau khi chọn
+  }
+}
+```
 
 ---
 
-### 17. 📥 Xuất CSV (Export)
+### 17. 🖱️ Menu chuột phải Header (Header Context Menu)
+
+Chuột phải vào **bất kỳ header nào** để mở menu quản lý bảng (DevExpress style):
+- **Sắp xếp**: Tăng dần, Giảm dần hoặc Bỏ sắp xếp.
+- **Ẩn/Hiện cột**: Ẩn cột hiện tại hoặc bật tắt danh sách tất cả các cột.
+- **Tự động co cột**: Đặt lại width thành 'auto' cho cột này hoặc tất cả cột.
+- **Bật/Tắt Filter**: Hiện/Ẩn hàng lọc dữ liệu hoặc ô tìm kiếm toàn bảng.
+
+---
+
+### 18. 📥 Xuất CSV (Export)
 
 ```html
 <app-custom-table
@@ -612,7 +652,11 @@ interface TreeColumnDef {
   filterMode?: string;       // 'input' | 'dropdown' | 'multiselect'
   filterOptions?: array;     // [{label, value}]
   editable?: boolean;        // Cho phép sửa inline
-  textWrap?: boolean;        // Wrap hay truncate
+  cssClass?: string;         // Class CSS
+  format?: (v, row) => str;  // Hàm format
+  editType?: string;         // 'text'|'number'|'date'|'lookup'|'table-lookup'|'textarea'
+  editDateFormat?: string;
+  editShowTime?: boolean;
 }
 ```
 

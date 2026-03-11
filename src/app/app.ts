@@ -26,9 +26,13 @@ export class App {
     { field: 'code', header: 'Code', width: '150px', sortable: true, frozen: true },
     { field: 'name', header: 'Name', width: '250px', sortable: true, textWrap: true },
     { field: 'category', header: 'Category', width: '200px', sortable: true, filterMode: 'dropdown' },
-    { field: 'inventoryStatus', header: 'Status', width: '200px', filterMode: 'dropdown' },
-    { field: 'quantity', header: 'Quantity', width: '150px', sortable: true, filterType: 'numeric' },
-    { field: 'price', header: 'Price', width: '150px', sortable: true, filterType: 'numeric' },
+    { field: 'inventoryStatus', header: 'Status', width: '200px', filterMode: 'dropdown', cssClass: 'text-center' },
+    { field: 'quantity', header: 'Quantity', width: '150px', sortable: true, filterType: 'numeric', cssClass: 'text-right' },
+    {
+      field: 'price', header: 'Price', width: '150px', sortable: true, filterType: 'numeric',
+      cssClass: 'text-right font-semibold',
+      format: (val: number) => val != null ? '$' + val.toLocaleString('en-US', { minimumFractionDigits: 2 }) : ''
+    },
   ];
 
   products = [
@@ -99,74 +103,173 @@ export class App {
   // Table 3: Tasks — Cell Editing, Row Reorder, Column Reorder, Export
   // ==========================================
   taskColumns: ColumnDef[] = [
-    { field: 'title', header: 'Task Title', width: '30%', editable: true },
-    { field: 'assignee', header: 'Assignee', width: '20%', editable: true },
-    { field: 'priority', header: 'Priority', width: '15%', editable: true },
-    { field: 'status', header: 'Status', width: '15%', editable: true },
-    { field: 'dueDate', header: 'Due Date', width: '20%', editable: true },
+    { field: 'title', header: 'Task Title', width: '25%', editable: true },
+    {
+      field: 'assignee', header: 'Assignee', width: '15%', editable: true,
+      editType: 'table-lookup',
+      editLookupConfig: {
+        data: [
+          { name: 'Alice', role: 'Frontend Developer', department: 'Engineering', email: 'alice@company.com' },
+          { name: 'Bob', role: 'Backend Developer', department: 'Engineering', email: 'bob@company.com' },
+          { name: 'Charlie', role: 'QA Engineer', department: 'Quality', email: 'charlie@company.com' },
+          { name: 'Diana', role: 'DevOps Engineer', department: 'Infrastructure', email: 'diana@company.com' },
+          { name: 'Eve', role: 'UI/UX Designer', department: 'Design', email: 'eve@company.com' },
+          { name: 'Frank', role: 'DBA', department: 'Engineering', email: 'frank@company.com' },
+          { name: 'Grace', role: 'Tech Writer', department: 'Documentation', email: 'grace@company.com' },
+          { name: 'Hank', role: 'Team Lead', department: 'Engineering', email: 'hank@company.com' },
+        ],
+        columns: [
+          { field: 'name', header: 'Name', width: '120px' },
+          { field: 'role', header: 'Role', width: '160px' },
+          { field: 'department', header: 'Department', width: '120px' },
+        ],
+        valueField: 'name',
+        displayField: 'name'
+      }
+    },
+    {
+      field: 'priority', header: 'Priority', width: '15%', editable: true,
+      editType: 'lookup',
+      editOptions: [
+        { label: 'Critical', value: 'Critical' },
+        { label: 'High', value: 'High' },
+        { label: 'Medium', value: 'Medium' },
+        { label: 'Low', value: 'Low' },
+      ],
+      cssClass: 'text-center'
+    },
+    {
+      field: 'status', header: 'Status', width: '15%', editable: true,
+      editType: 'lookup',
+      editOptions: [
+        { label: 'To Do', value: 'To Do' },
+        { label: 'In Progress', value: 'In Progress' },
+        { label: 'Done', value: 'Done' },
+        { label: 'Blocked', value: 'Blocked' },
+      ],
+      cssClass: 'text-center'
+    },
+    { field: 'dueDate', header: 'Due Date', width: '15%', editable: true, editType: 'date' },
+    {
+      field: 'project', header: 'Project', width: '15%', editable: true,
+      editType: 'table-lookup',
+      editLookupConfig: {
+        data: [
+          { code: 'PRJ-001', name: 'Website Redesign', client: 'Acme Corp' },
+          { code: 'PRJ-002', name: 'Mobile App v2', client: 'TechStart' },
+          { code: 'PRJ-003', name: 'API Gateway', client: 'Internal' },
+          { code: 'PRJ-004', name: 'Data Pipeline', client: 'BigData Inc' },
+        ],
+        columns: [
+          { field: 'code', header: 'Mã DA', width: '100px' },
+          { field: 'name', header: 'Tên dự án', width: '180px' },
+          { field: 'client', header: 'Khách hàng', width: '120px' },
+        ],
+        valueField: 'code',
+        displayField: 'name'
+      }
+    },
+    { field: 'description', header: 'Notes', width: '20%', editable: true, editType: 'textarea' },
   ];
 
   tasks = [
-    { id: 1, title: 'Design Landing Page', assignee: 'Alice', priority: 'High', status: 'In Progress', dueDate: '2026-03-15' },
-    { id: 2, title: 'Implement User Auth', assignee: 'Bob', priority: 'Critical', status: 'To Do', dueDate: '2026-03-10' },
-    { id: 3, title: 'Write Unit Tests', assignee: 'Charlie', priority: 'Medium', status: 'To Do', dueDate: '2026-03-20' },
-    { id: 4, title: 'Deploy to Staging', assignee: 'Diana', priority: 'High', status: 'Done', dueDate: '2026-03-08' },
-    { id: 5, title: 'Fix CSS Bug', assignee: 'Eve', priority: 'Low', status: 'In Progress', dueDate: '2026-03-12' },
-    { id: 6, title: 'Database Migration', assignee: 'Frank', priority: 'Critical', status: 'To Do', dueDate: '2026-03-09' },
-    { id: 7, title: 'API Documentation', assignee: 'Grace', priority: 'Medium', status: 'Done', dueDate: '2026-03-18' },
-    { id: 8, title: 'Performance Audit', assignee: 'Hank', priority: 'High', status: 'In Progress', dueDate: '2026-03-22' },
+    { id: 1, title: 'Design Landing Page', assignee: 'Alice', priority: 'High', status: 'In Progress', dueDate: '2026-03-15', project: 'PRJ-001', description: 'Need to focus on mobile responsiveness and modern animations.' },
+    { id: 2, title: 'Implement User Auth', assignee: 'Bob', priority: 'Critical', status: 'To Do', dueDate: '2026-03-10', project: 'PRJ-002', description: 'Using JWT and refresh tokens.' },
+    { id: 3, title: 'Write Unit Tests', assignee: 'Charlie', priority: 'Medium', status: 'To Do', dueDate: '2026-03-20', project: 'PRJ-003', description: 'Coverage target: 80%.' },
+    { id: 4, title: 'Deploy to Staging', assignee: 'Diana', priority: 'High', status: 'Done', dueDate: '2026-03-08', project: 'PRJ-001', description: 'Check environment variables.' },
+    { id: 5, title: 'Fix CSS Bug', assignee: 'Eve', priority: 'Low', status: 'In Progress', dueDate: '2026-03-12', project: 'PRJ-002', description: 'Fixing Safari specific alignment issues.' },
+    { id: 6, title: 'Database Migration', assignee: 'Frank', priority: 'Critical', status: 'To Do', dueDate: '2026-03-09', project: 'PRJ-004', description: 'Upgrading to PostgreSQL 15.' },
+    { id: 7, title: 'API Documentation', assignee: 'Grace', priority: 'Medium', status: 'Done', dueDate: '2026-03-18', project: 'PRJ-003', description: 'Updating Swagger definitions.' },
+    { id: 8, title: 'Performance Audit', assignee: 'Hank', priority: 'High', status: 'In Progress', dueDate: '2026-03-22', project: 'PRJ-004', description: 'Identifying slow queries.' },
   ];
 
   onRowReorder(event: any) {
     // The table updates its internal order automatically
   }
 
+  // Handle table-lookup selections from any column
+  onLookupSelect(event: { selectedRow: any; field: string; rowData: any }) {
+    switch (event.field) {
+      case 'assignee':
+        // Ví dụ: khi chọn assignee, tự động fill email
+        console.log(`Assigned to: ${event.selectedRow.name} (${event.selectedRow.email})`);
+        break;
+      case 'project':
+        // Ví dụ: khi chọn project, log client info
+        console.log(`Project: ${event.selectedRow.name}, Client: ${event.selectedRow.client}`);
+        break;
+      case 'owner':
+        console.log(`Owner selected for TreeTable: ${event.selectedRow.name}, Role: ${event.selectedRow.role}`);
+        break;
+      default:
+        console.log('Lookup selected:', event);
+    }
+  }
+
   // ==========================================
   // TreeTable 1: File System — Sort, Filter, Selection, Export
   // ==========================================
   fileColumns: TreeColumnDef[] = [
-    { field: 'name', header: 'Name', width: '40%', sortable: true },
-    { field: 'size', header: 'Size', width: '20%', sortable: true },
-    { field: 'type', header: 'Type', width: '20%', sortable: true, filterMode: 'dropdown' },
-    { field: 'modified', header: 'Modified', width: '20%', sortable: true },
+    { field: 'name', header: 'Name', width: '30%', sortable: true, editable: true },
+    { field: 'size', header: 'Size', width: '15%', sortable: true },
+    { field: 'type', header: 'Type', width: '15%', sortable: true, filterMode: 'dropdown' },
+    { field: 'modified', header: 'Modified', width: '20%', sortable: true, editable: true, editType: 'date', editDateFormat: 'dd/mm/yy' },
+    {
+      field: 'owner', header: 'Owner', width: '20%', editable: true,
+      editType: 'table-lookup',
+      editLookupConfig: {
+        data: [
+          { name: 'System', role: 'Administrator' },
+          { name: 'Alice', role: 'Staff' },
+          { name: 'Bob', role: 'Manager' },
+        ],
+        columns: [
+          { field: 'name', header: 'User', width: '100px' },
+          { field: 'role', header: 'Role', width: '100px' },
+        ],
+        valueField: 'name',
+        displayField: 'name'
+      }
+    },
+    { field: 'notes', header: 'Notes', width: '20%', editable: true, editType: 'textarea' }
   ];
 
   fileSystem: TreeNode[] = [
     {
-      data: { name: 'Documents', size: '—', type: 'Folder', modified: '2026-03-01' },
+      data: { name: 'Documents', size: '—', type: 'Folder', modified: new Date(2026, 2, 1), owner: 'System', notes: 'Core system folder.' },
       expanded: true,
       children: [
         {
-          data: { name: 'Work', size: '—', type: 'Folder', modified: '2026-03-01' },
+          data: { name: 'Work', size: '—', type: 'Folder', modified: new Date(2026, 2, 1), owner: 'Alice', notes: 'Work project documents.' },
           expanded: true,
           children: [
-            { data: { name: 'Report.docx', size: '120 KB', type: 'Document', modified: '2026-02-28' }, leaf: true },
-            { data: { name: 'Proposal.pdf', size: '450 KB', type: 'PDF', modified: '2026-02-25' }, leaf: true },
-            { data: { name: 'Budget.xlsx', size: '85 KB', type: 'Spreadsheet', modified: '2026-03-01' }, leaf: true },
+            { data: { name: 'Report.docx', size: '120 KB', type: 'Document', modified: new Date(2026, 1, 28), owner: 'Alice', notes: 'Monthly report draft.' }, leaf: true },
+            { data: { name: 'Proposal.pdf', size: '450 KB', type: 'PDF', modified: new Date(2026, 1, 25), owner: 'Alice', notes: 'Client proposal v1.' }, leaf: true },
+            { data: { name: 'Budget.xlsx', size: '85 KB', type: 'Spreadsheet', modified: new Date(2026, 2, 1), owner: 'Alice', notes: 'Q1 budget planning.' }, leaf: true },
           ]
         },
         {
-          data: { name: 'Personal', size: '—', type: 'Folder', modified: '2026-02-15' },
+          data: { name: 'Personal', size: '—', type: 'Folder', modified: new Date(2026, 1, 15), owner: 'Bob', notes: 'Personal storage.' },
           children: [
-            { data: { name: 'Resume.pdf', size: '80 KB', type: 'PDF', modified: '2026-01-10' }, leaf: true },
-            { data: { name: 'CoverLetter.docx', size: '35 KB', type: 'Document', modified: '2026-01-12' }, leaf: true },
+            { data: { name: 'Resume.pdf', size: '80 KB', type: 'PDF', modified: new Date(2026, 0, 10), owner: 'Bob', notes: 'Updated resume Jan 2026.' }, leaf: true },
+            { data: { name: 'CoverLetter.docx', size: '35 KB', type: 'Document', modified: new Date(2026, 0, 12), owner: 'Bob', notes: 'Standard cover letter.' }, leaf: true },
           ]
         }
       ]
     },
     {
-      data: { name: 'Pictures', size: '—', type: 'Folder', modified: '2026-02-20' },
+      data: { name: 'Pictures', size: '—', type: 'Folder', modified: new Date(2026, 1, 20), owner: 'System' },
       children: [
-        { data: { name: 'Vacation.jpg', size: '3.2 MB', type: 'Image', modified: '2026-02-18' }, leaf: true },
-        { data: { name: 'Family.png', size: '2.1 MB', type: 'Image', modified: '2026-02-20' }, leaf: true },
-        { data: { name: 'Screenshot.png', size: '450 KB', type: 'Image', modified: '2026-03-05' }, leaf: true },
+        { data: { name: 'Vacation.jpg', size: '3.2 MB', type: 'Image', modified: new Date(2026, 1, 18), owner: 'Alice' }, leaf: true },
+        { data: { name: 'Family.png', size: '2.1 MB', type: 'Image', modified: new Date(2026, 1, 20), owner: 'Alice' }, leaf: true },
+        { data: { name: 'Screenshot.png', size: '450 KB', type: 'Image', modified: new Date(2026, 2, 5), owner: 'Alice' }, leaf: true },
       ]
     },
     {
-      data: { name: 'Downloads', size: '—', type: 'Folder', modified: '2026-03-08' },
+      data: { name: 'Downloads', size: '—', type: 'Folder', modified: new Date(2026, 2, 8), owner: 'System' },
       children: [
-        { data: { name: 'Setup.exe', size: '15 MB', type: 'Application', modified: '2026-03-08' }, leaf: true },
-        { data: { name: 'Driver.zip', size: '8.5 MB', type: 'Archive', modified: '2026-03-06' }, leaf: true },
+        { data: { name: 'Setup.exe', size: '15 MB', type: 'Application', modified: new Date(2026, 2, 8), owner: 'Bob' }, leaf: true },
+        { data: { name: 'Driver.zip', size: '8.5 MB', type: 'Archive', modified: new Date(2026, 2, 6), owner: 'System' }, leaf: true },
       ]
     }
   ];

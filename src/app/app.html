@@ -15,8 +15,8 @@
           [loading]="isProductsLoading" [globalFilterFields]="['name', 'code', 'category']" [resizable]="true"
           [showGridlines]="true" [showGlobalFilter]="true" [showColumnFilter]="true" [scrollable]="true"
           scrollHeight="350px" selectionMode="single" dataKey="id" [(selection)]="selectedProduct" [paginator]="true"
-          [rows]="5" [rowsPerPageOptions]="[5, 10, 20]" [contextMenuItems]="productContextMenu" [expandable]="true"
-          [stripedRows]="true" [exportable]="true" exportFilename="products_export" stateKey="products-table-state">
+          [rows]="5" [rowsPerPageOptions]="[5, 10, 20]" [contextMenuItems]="productContextMenu" [stripedRows]="true"
+          [exportable]="true" exportFilename="products_export" stateKey="products-table-state">
         </app-custom-table>
         <div class="mt-2 text-sm text-600" *ngIf="selectedProduct">
           <strong>Selected:</strong> {{ selectedProduct.name }} ({{ selectedProduct.code }})
@@ -58,7 +58,8 @@
         <app-custom-table [data]="tasks" [columns]="taskColumns" title="Sprint Tasks" [resizable]="true"
           [showGridlines]="true" [showColumnFilter]="false" dataKey="id" editMode="cell" [reorderableRows]="true"
           [reorderableColumns]="true" [exportable]="true" exportFilename="tasks_export" [paginator]="true" [rows]="10"
-          [rowsPerPageOptions]="[5, 10, 20]" (rowReorder)="onRowReorder($event)">
+          [rowsPerPageOptions]="[5, 10, 20]" (rowReorder)="onRowReorder($event)"
+          (lookupSelect)="onLookupSelect($event)">
         </app-custom-table>
       </section>
 
@@ -75,7 +76,8 @@
         <app-custom-tree-table [data]="fileSystem" [columns]="fileColumns" title="File Explorer"
           [showGlobalFilter]="true" [globalFilterFields]="['name', 'type']" [showColumnFilter]="true" [resizable]="true"
           [showGridlines]="true" selectionMode="single" dataKey="name" [(selection)]="selectedFile" [scrollable]="true"
-          scrollHeight="400px" [exportable]="true" exportFilename="file_system_export">
+          scrollHeight="400px" [exportable]="true" exportFilename="file_system_export"
+          (lookupSelect)="onLookupSelect($event)">
         </app-custom-tree-table>
         <div class="mt-2 text-sm text-600" *ngIf="selectedFile">
           <strong>Selected:</strong> {{ selectedFile.data?.name }} ({{ selectedFile.data?.type }})
@@ -95,7 +97,8 @@
         <app-custom-tree-table [data]="orgData" [columns]="orgColumns" title="Company Structure"
           [showColumnFilter]="true" [resizable]="true" [showGridlines]="true" selectionMode="checkbox" dataKey="name"
           [(selection)]="selectedOrgNodes" editMode="cell" [contextMenuItems]="orgContextMenu"
-          [reorderableColumns]="true" [exportable]="true" exportFilename="organization_export">
+          [reorderableColumns]="true" [exportable]="true" exportFilename="organization_export"
+          (lookupSelect)="onLookupSelect($event)">
         </app-custom-tree-table>
         <div class="mt-2 text-sm text-600">
           <strong>Selected:</strong> {{ selectedOrgNodes.length }} node(s)
