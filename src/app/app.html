@@ -141,28 +141,28 @@
           </ng-template>
         </p-splitter>
 
-        <!-- Vertical Splitter (nested inside a fixed-height container) -->
+        <!-- Vertical Splitter -->
         <h4 class="text-lg font-semibold mb-2 mt-4">🔀 Vertical Splitter</h4>
         <p-splitter layout="vertical" [style]="{ height: '600px' }" [panelSizes]="[50, 50]">
           <ng-template #panel>
             <div class="flex flex-column w-full h-full p-2">
-              <h4 class="text-lg font-semibold mb-2">📂 File Explorer (Auto Height)</h4>
+              <h4 class="text-lg font-semibold mb-2">📦 Products (Auto Height)</h4>
               <div class="flex-1" style="min-height: 0;">
-                <app-custom-tree-table [data]="fileSystem" [columns]="fileColumns" [resizable]="true"
-                  [showGridlines]="true" [scrollable]="true" scrollHeight="flex" dataKey="name"
+                <app-custom-table [data]="activeProducts" [columns]="productColumns" [resizable]="true"
+                  [showGridlines]="true" [scrollable]="true" scrollHeight="flex" dataKey="id"
                   [showColumnFilter]="false">
-                </app-custom-tree-table>
+                </app-custom-table>
               </div>
             </div>
           </ng-template>
           <ng-template #panel>
             <div class="flex flex-column w-full h-full p-2">
-              <h4 class="text-lg font-semibold mb-2">🏢 Organization (Auto Height)</h4>
+              <h4 class="text-lg font-semibold mb-2">👥 Users (Auto Height)</h4>
               <div class="flex-1" style="min-height: 0;">
-                <app-custom-tree-table [data]="orgData" [columns]="orgColumns" [resizable]="true"
-                  [showGridlines]="true" [scrollable]="true" scrollHeight="flex" dataKey="name" editMode="cell"
+                <app-custom-table [data]="users" [columns]="userColumns" [resizable]="true"
+                  [showGridlines]="true" [scrollable]="true" scrollHeight="flex" dataKey="id"
                   [showColumnFilter]="false">
-                </app-custom-tree-table>
+                </app-custom-table>
               </div>
             </div>
           </ng-template>
