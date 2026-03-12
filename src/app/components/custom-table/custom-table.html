@@ -180,7 +180,7 @@
                                 </ng-template>
                             </ng-template>
                             <ng-template pTemplate="output">
-                                <div [class]="(col.textWrap !== undefined ? col.textWrap : textWrap) ? 'wrap-text' : 'truncate-text'"
+                                <div [class]="(col.textWrap !== undefined ? col.textWrap : (col.editType === 'textarea' ? true : textWrap)) ? 'wrap-text' : 'truncate-text'"
                                     [title]="rowData[col.field]">
                                     {{ formatValue(col, rowData) }}
                                 </div>
@@ -189,7 +189,7 @@
                     </ng-container>
                     <!-- Read-only cell -->
                     <ng-template #readOnlyCell>
-                        <div [class]="(col.textWrap !== undefined ? col.textWrap : textWrap) ? 'wrap-text' : 'truncate-text'"
+                        <div [class]="(col.textWrap !== undefined ? col.textWrap : (col.editType === 'textarea' ? true : textWrap)) ? 'wrap-text' : 'truncate-text'"
                             [title]="rowData[col.field]">
                             {{ formatValue(col, rowData) }}
                         </div>

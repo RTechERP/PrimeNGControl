@@ -39,7 +39,7 @@
 
 /* Text Wrapping for long strings */
 .wrap-text {
-    white-space: normal;
+    white-space: pre-wrap;
     word-break: break-word;
     display: block;
     width: 100%;
