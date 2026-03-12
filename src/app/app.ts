@@ -8,11 +8,12 @@ import { CustomTable } from './components/custom-table/custom-table';
 import { ColumnDef } from './components/custom-table/column-def.model';
 import { CustomTreeTable } from './components/custom-tree-table/custom-tree-table';
 import { TreeColumnDef } from './components/custom-tree-table/tree-column-def.model';
+import { SplitterModule } from 'primeng/splitter';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, CommonModule, ButtonModule, CardModule, CustomTable, CustomTreeTable],
+  imports: [RouterOutlet, CommonModule, ButtonModule, CardModule, CustomTable, CustomTreeTable, SplitterModule],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })

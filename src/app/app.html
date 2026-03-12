@@ -105,6 +105,71 @@
         </div>
       </section>
 
+      <hr class="my-4 border-top-1 border-300" />
+
+      <!-- ============================================ -->
+      <!-- SPLITTER DEMO: Tables with Auto Height -->
+      <!-- ============================================ -->
+      <section>
+        <h3 class="text-xl font-bold mb-4">📐 Splitter Demo
+          <small class="text-sm font-normal text-500 ml-2">(Resize panels to see table auto-height behavior with
+            scrollHeight="flex")</small>
+        </h3>
+
+        <!-- Horizontal Splitter -->
+        <p-splitter [style]="{ height: '500px' }" [panelSizes]="[50, 50]" styleClass="mb-4">
+          <ng-template #panel>
+            <div class="flex flex-column w-full h-full p-2">
+              <h4 class="text-lg font-semibold mb-2">📦 Products (Auto Height)</h4>
+              <div class="flex-1" style="min-height: 0;">
+                <app-custom-table [data]="activeProducts" [columns]="productColumns" [resizable]="true"
+                  [showGridlines]="true" [scrollable]="true" scrollHeight="flex" dataKey="id"
+                  [showColumnFilter]="false">
+                </app-custom-table>
+              </div>
+            </div>
+          </ng-template>
+          <ng-template #panel>
+            <div class="flex flex-column w-full h-full p-2">
+              <h4 class="text-lg font-semibold mb-2">✏️ Tasks (Auto Height)</h4>
+              <div class="flex-1" style="min-height: 0;">
+                <app-custom-table [data]="tasks" [columns]="taskColumns" [resizable]="true" [showGridlines]="true"
+                  [scrollable]="true" scrollHeight="flex" dataKey="id" editMode="cell" [showColumnFilter]="false">
+                </app-custom-table>
+              </div>
+            </div>
+          </ng-template>
+        </p-splitter>
+
+        <!-- Vertical Splitter (nested inside a fixed-height container) -->
+        <h4 class="text-lg font-semibold mb-2 mt-4">🔀 Vertical Splitter</h4>
+        <p-splitter layout="vertical" [style]="{ height: '600px' }" [panelSizes]="[50, 50]">
+          <ng-template #panel>
+            <div class="flex flex-column w-full h-full p-2">
+              <h4 class="text-lg font-semibold mb-2">📂 File Explorer (Auto Height)</h4>
+              <div class="flex-1" style="min-height: 0;">
+                <app-custom-tree-table [data]="fileSystem" [columns]="fileColumns" [resizable]="true"
+                  [showGridlines]="true" [scrollable]="true" scrollHeight="flex" dataKey="name"
+                  [showColumnFilter]="false">
+                </app-custom-tree-table>
+              </div>
+            </div>
+          </ng-template>
+          <ng-template #panel>
+            <div class="flex flex-column w-full h-full p-2">
+              <h4 class="text-lg font-semibold mb-2">🏢 Organization (Auto Height)</h4>
+              <div class="flex-1" style="min-height: 0;">
+                <app-custom-tree-table [data]="orgData" [columns]="orgColumns" [resizable]="true"
+                  [showGridlines]="true" [scrollable]="true" scrollHeight="flex" dataKey="name" editMode="cell"
+                  [showColumnFilter]="false">
+                </app-custom-tree-table>
+              </div>
+            </div>
+          </ng-template>
+        </p-splitter>
+
+      </section>
+
     </div>
   </p-card>
 </div>
