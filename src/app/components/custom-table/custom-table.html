@@ -9,10 +9,10 @@
     (selectionChange)="onSelectionChange($event)" [dataKey]="dataKey" [loading]="loading"
     [contextMenu]="contextMenuItems.length > 0 ? cm : null" [(contextMenuSelection)]="selectedContextRow"
     (onContextMenuSelect)="onContextMenuSelect($event)" [rowHover]="true" [stripedRows]="stripedRows"
-    [reorderableColumns]="reorderableColumns" (onRowReorder)="onRowReorder($event)" [virtualScroll]="virtualScroll"
+    [reorderableColumns]="reorderableColumns" (onRowReorder)="onRowReorder($event)" (onColResize)="onColResize()" [virtualScroll]="virtualScroll"
     [virtualScrollItemSize]="virtualScrollItemSize" [stateKey]="stateKey" [stateStorage]="stateStorage"
     [expandedRowKeys]="expandable ? expandedRows : expandedRowKeys" [rowExpandMode]="rowExpandMode"
-    [editMode]="editMode || 'cell'" [exportFilename]="exportFilename">
+    [editMode]="editMode || 'cell'" [exportFilename]="exportFilename" [filterDelay]="300">
 
     <!-- Caption with Global Search + Export -->
     <ng-template pTemplate="caption" *ngIf="title || showGlobalFilter || exportable">
@@ -46,12 +46,50 @@
                 [alignFrozen]="col.alignFrozen || 'left'" [style.width]="col.width || 'auto'" pReorderableColumn
                 [pReorderableColumnDisabled]="!reorderableColumns" [ngClass]="col.cssClass"
                 (contextmenu)="onHeaderContextMenu($event, col.field)">
-                {{ col.header }}
-                <p-sortIcon *ngIf="col.sortable" [field]="col.field"></p-sortIcon>
+                <div class="flex align-items-center justify-content-between gap-1">
+                    <span>{{ col.header }}</span>
+                    <div class="flex align-items-center gap-1">
+                        <p-sortIcon *ngIf="col.sortable" [field]="col.field"></p-sortIcon>
+                        <!-- Menu-style filter icon (display="menu") -->
+                        <ng-container *ngIf="filterDisplay === 'menu' && showColumnFilter">
+                            <ng-container *ngIf="!col.filterMode || col.filterMode === 'input'">
+                                <p-columnFilter [type]="col.filterType || 'text'" [field]="col.field"
+                                    display="menu"></p-columnFilter>
+                            </ng-container>
+                            <ng-container *ngIf="col.filterMode === 'dropdown'">
+                                <p-columnFilter [field]="col.field" matchMode="equals" display="menu"
+                                    [showMatchModes]="false" [showOperator]="false" [showAddButton]="false">
+                                    <ng-template pTemplate="filter" let-value let-filterCallback="filterCallback">
+                                        <p-select [options]="getFilterOptions(col)" [ngModel]="value"
+                                            (ngModelChange)="filterCallback($event)" optionLabel="label"
+                                            optionValue="value" [placeholder]="'Chọn ' + col.header"
+                                            [showClear]="true" [filter]="true" filterPlaceholder="Tìm..."
+                                            [style]="{ 'width': '14rem' }">
+                                        </p-select>
+                                    </ng-template>
+                                </p-columnFilter>
+                            </ng-container>
+                            <ng-container *ngIf="col.filterMode === 'multiselect'">
+                                <p-columnFilter [field]="col.field" matchMode="in" display="menu"
+                                    [showMatchModes]="false" [showOperator]="false" [showAddButton]="false">
+                                    <ng-template pTemplate="filter" let-value let-filterCallback="filterCallback">
+                                        <p-multiSelect [options]="getFilterOptions(col)" [ngModel]="value"
+                                            (ngModelChange)="filterCallback($event)" optionLabel="label"
+                                            optionValue="value" [placeholder]="'Chọn ' + col.header" [filter]="true"
+                                            filterPlaceholder="Tìm..." [style]="{ 'min-width': '14rem' }"
+                                            [virtualScroll]="col.filterVirtualScroll || false"
+                                            [virtualScrollItemSize]="col.filterVirtualScrollItemSize || 30">
+                                        </p-multiSelect>
+                                    </ng-template>
+                                </p-columnFilter>
+                            </ng-container>
+                        </ng-container>
+                    </div>
+                </div>
             </th>
         </tr>
-        <!-- Filter Row -->
-        <tr *ngIf="showColumnFilter">
+        <!-- Filter Row (only for display="row") -->
+        <tr *ngIf="showColumnFilter && filterDisplay === 'row'">
             <th *ngIf="reorderableRows"></th>
             <th *ngIf="expandable"></th>
             <!-- Empty cell for checkbox column -->
@@ -59,10 +97,15 @@
             <th *ngFor="let col of columns" pFrozenColumn [frozen]="col.frozen || false"
                 [alignFrozen]="col.alignFrozen || 'left'">
 
-                <!-- Default: text/numeric input filter -->
+                <!-- Default: text/numeric input filter — auto-filter on input -->
                 <ng-container *ngIf="!col.filterMode || col.filterMode === 'input'">
                     <p-columnFilter [type]="col.filterType || 'text'" [field]="col.field" display="row"
-                        matchMode="contains" [placeholder]="'Search ' + col.header">
+                        matchMode="contains" [showMenu]="false">
+                        <ng-template pTemplate="filter" let-value let-filterCallback="filterCallback">
+                            <input pInputText [ngModel]="value" [placeholder]="'Search ' + col.header"
+                                style="width: 100%;"
+                                (input)="filterCallback($any($event.target).value)" />
+                        </ng-template>
                     </p-columnFilter>
                 </ng-container>
 
@@ -86,7 +129,9 @@
                             <p-multiSelect [options]="getFilterOptions(col)" [ngModel]="value"
                                 (ngModelChange)="filterCallback($event)" optionLabel="label" optionValue="value"
                                 [placeholder]="'Select ' + col.header" [filter]="true" filterPlaceholder="Search..."
-                                appendTo="body" [style]="{ 'width': '100%' }">
+                                appendTo="body" [style]="{ 'width': '100%' }"
+                                [virtualScroll]="col.filterVirtualScroll || false"
+                                [virtualScrollItemSize]="col.filterVirtualScrollItemSize || 30">
                             </p-multiSelect>
                         </ng-template>
                     </p-columnFilter>
@@ -114,8 +159,10 @@
     <!-- Body Row -->
     <ng-template pTemplate="body" let-rowData let-rowIndex="rowIndex" let-expanded="expanded">
         <tr *ngIf="!expandableRowGroups || isGroupExpanded(rowData[groupRowsBy])" [pSelectableRow]="rowData"
-            [pSelectableRowIndex]="rowIndex" [pContextMenuRow]="contextMenuItems.length > 0 ? rowData : null"
-            [pReorderableRow]="rowIndex">
+            [pSelectableRowIndex]="rowIndex" [pSelectableRowDisabled]="clickSelectRow"
+            [pContextMenuRow]="contextMenuItems.length > 0 ? rowData : null"
+            [pReorderableRow]="rowIndex" [class.row-click-selected]="isRowClicked(rowData)"
+            (click)="onRowClick(rowData)">
             <!-- Drag handle for row reorder -->
             <td *ngIf="reorderableRows">
                 <span class="pi pi-bars" pReorderableRowHandle style="cursor: move;"></span>
@@ -135,7 +182,7 @@
                 [alignFrozen]="col.alignFrozen || 'left'"
                 [pEditableColumn]="col.editable && editMode && col.editType !== 'table-lookup' ? rowData : null"
                 [pEditableColumnField]="col.editable && editMode && col.editType !== 'table-lookup' ? col.field : ''"
-                [ngClass]="col.cssClass"
+                [ngClass]="getAutoAlignClass(col.cssClass, col)"
                 (click)="col.editType === 'table-lookup' && col.editable && editMode ? openTableLookup($event, col, rowData) : null">
 
                 <!-- Table Lookup: click cell to open popup directly -->
@@ -199,6 +246,21 @@
         </tr>
     </ng-template>
 
+    <!-- Column Footer Row -->
+    <ng-template pTemplate="footer" *ngIf="showFooter">
+        <tr>
+            <td *ngIf="reorderableRows"></td>
+            <td *ngIf="expandable"></td>
+            <td *ngIf="selectionMode === 'multiple'" pFrozenColumn [frozen]="true"></td>
+            <td *ngFor="let col of columns" pFrozenColumn [frozen]="col.frozen || false"
+                [alignFrozen]="col.alignFrozen || 'left'"
+                [ngClass]="getAutoAlignClass(col.footerClass || col.cssClass, col)"
+                class="font-semibold" style="background: var(--p-surface-100);">
+                {{ getFooterValue(col) }}
+            </td>
+        </tr>
+    </ng-template>
+
     <!-- Row Expansion Template -->
     <ng-template pTemplate="rowexpansion" let-rowData *ngIf="expandable">
         <tr>
@@ -249,27 +311,61 @@
             <button pButton icon="pi pi-times" class="p-button-sm p-button-danger p-button-text"
                 (click)="lookupPanel.hide()"></button>
         </div>
-        <div style="max-height: 300px; overflow-y: auto;">
+        <!-- Loading state -->
+        <div *ngIf="lookupLoading" class="flex justify-content-center align-items-center" style="min-height: 80px;">
+            <i class="pi pi-spin pi-spinner" style="font-size: 1.5rem; color: var(--p-primary-color);"></i>
+        </div>
+        <div *ngIf="!lookupLoading" style="max-height: 300px; overflow-y: auto;">
             <table class="lookup-table">
                 <thead>
                     <tr>
+                        <!-- Checkbox column header (multi-select) -->
+                        <th *ngIf="activeLookupCol?.editLookupConfig?.multiSelect" style="width: 36px;">
+                            <input type="checkbox" [checked]="lookupSelectedRows.length === lookupFilteredData.length && lookupFilteredData.length > 0"
+                                (change)="lookupSelectedRows.length === lookupFilteredData.length ? lookupSelectedRows = [] : lookupSelectedRows = [...lookupFilteredData]" />
+                        </th>
                         <th *ngFor="let lc of activeLookupCol?.editLookupConfig?.columns"
                             [style.width]="lc.width || 'auto'">{{ lc.header }}</th>
+                    </tr>
+                    <tr>
+                        <th *ngIf="activeLookupCol?.editLookupConfig?.multiSelect" style="padding: 2px 4px;"></th>
+                        <th *ngFor="let lc of activeLookupCol?.editLookupConfig?.columns" style="padding: 2px 4px;">
+                            <input pInputText type="text" [(ngModel)]="lookupColFilters[lc.field]"
+                                (input)="filterLookupData()" [placeholder]="'Lọc...'"
+                                style="width: 100%; font-size: 0.75rem; padding: 2px 6px;" />
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr *ngFor="let row of lookupFilteredData" class="lookup-row"
-                        [class.lookup-row-selected]="isLookupRowSelected(row)" (click)="selectLookupRow(row)">
+                        [class.lookup-row-selected]="isLookupRowSelected(row)"
+                        (click)="activeLookupCol?.editLookupConfig?.multiSelect ? toggleLookupRow(row) : selectLookupRow(row)">
+                        <!-- Checkbox cell (multi-select) -->
+                        <td *ngIf="activeLookupCol?.editLookupConfig?.multiSelect" style="width: 36px; text-align: center;"
+                            (click)="$event.stopPropagation(); toggleLookupRow(row)">
+                            <input type="checkbox" [checked]="isLookupRowSelected(row)" (change)="toggleLookupRow(row)" />
+                        </td>
                         <td *ngFor="let lc of activeLookupCol?.editLookupConfig?.columns">{{ row[lc.field] }}</td>
                     </tr>
                     <tr *ngIf="lookupFilteredData.length === 0">
-                        <td [attr.colspan]="activeLookupCol?.editLookupConfig?.columns?.length"
+                        <td [attr.colspan]="(activeLookupCol?.editLookupConfig?.columns?.length || 0) + (activeLookupCol?.editLookupConfig?.multiSelect ? 1 : 0)"
                             class="text-center text-500">
                             Không tìm thấy kết quả
                         </td>
                     </tr>
                 </tbody>
             </table>
+        </div>
+        <!-- Multi-select footer -->
+        <div *ngIf="activeLookupCol?.editLookupConfig?.multiSelect"
+            class="flex align-items-center justify-content-between pt-2" style="border-top: 1px solid var(--p-surface-200);">
+            <span class="text-sm text-500">Đã chọn: {{ lookupSelectedRows.length }}</span>
+            <div class="flex gap-2">
+                <button pButton label="Bỏ chọn" icon="pi pi-times" class="p-button-sm p-button-text p-button-secondary"
+                    (click)="lookupSelectedRows = []"></button>
+                <button pButton label="Xác nhận" icon="pi pi-check" class="p-button-sm p-button-success"
+                    (click)="confirmLookupSelection()"></button>
+            </div>
         </div>
     </div>
 </p-popover>

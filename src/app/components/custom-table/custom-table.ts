@@ -13,7 +13,7 @@ import { Popover, PopoverModule } from 'primeng/popover';
 import { DatePickerModule } from 'primeng/datepicker';
 import { TextareaModule } from 'primeng/textarea';
 import { MenuItem } from 'primeng/api';
-import { ColumnDef } from './column-def.model';
+import { ColumnDef, EditLookupConfig } from './column-def.model';
 
 @Component({
     selector: 'app-custom-table',
@@ -34,9 +34,15 @@ export class CustomTable implements OnChanges {
 
     // --- Table Lookup State ---
     lookupSearchText: string = '';
+    lookupColFilters: { [field: string]: string } = {};
     lookupFilteredData: any[] = [];
+    lookupLoading: boolean = false;
     activeLookupCol: ColumnDef | null = null;
     activeLookupRowData: any = null;
+    lookupSelectedRows: any[] = [];
+    /** Cache of last-loaded data per field (for formatValue when using loadData) */
+    private lookupDataCache: { [field: string]: any[] } = {};
+    private lookupDebounceTimer: any = null;
 
     // --- Data ---
     private _originalData: any[] = [];
@@ -64,6 +70,8 @@ export class CustomTable implements OnChanges {
     @Input() resizeMode: string = 'fit';
     @Input() showGridlines: boolean = true;
     @Input() showColumnFilter: boolean = true;
+    /** 'row' = filter inputs below header (default), 'menu' = filter icon in header opens popup */
+    @Input() filterDisplay: 'row' | 'menu' = 'row';
     @Input() textWrap: boolean = false;
     @Input() stripedRows: boolean = false;
 
@@ -115,6 +123,61 @@ export class CustomTable implements OnChanges {
     @Input() rowExpandMode: 'single' | 'multiple' = 'multiple';
     expandedRows: { [key: string]: boolean } = {};
 
+    // --- Click Row Select (highlight active row on cell click, always single) ---
+    /** Bật highlight dòng khi click bất kỳ cell nào. Luôn là single: click dòng khác → bỏ highlight dòng cũ.
+     *  Hoạt động độc lập với selectionMode="multiple" (checkbox multi-select). */
+    @Input() clickSelectRow: boolean = false;
+    @Output() rowClick = new EventEmitter<any>();
+    clickedRowKey: any = null;
+
+    onRowClick(rowData: any) {
+        if (!this.clickSelectRow) return;
+        this.clickedRowKey = this.dataKey ? rowData[this.dataKey] : rowData;
+        this.rowClick.emit(rowData);
+    }
+
+    isRowClicked(rowData: any): boolean {
+        if (!this.clickSelectRow) return false;
+        const key = this.dataKey ? rowData[this.dataKey] : rowData;
+        return this.clickedRowKey === key;
+    }
+
+    // --- Footer ---
+    @Input() showFooter: boolean = false;
+
+    getFooterValue(col: ColumnDef): string {
+        if (col.footer) {
+            if (typeof col.footer === 'function') return col.footer(this.data);
+            return col.footer;
+        }
+        if (col.footerType) {
+            const vals = this.data
+                .map(r => r[col.field])
+                .filter(v => v != null && !isNaN(Number(v)))
+                .map(Number);
+            const fmt = col.footerFormat;
+            switch (col.footerType) {
+                case 'sum': return vals.reduce((s, v) => s + v, 0).toLocaleString(undefined, fmt);
+                case 'avg': return vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length).toLocaleString(undefined, fmt) : '';
+                case 'count': return this.data.length.toString();
+                case 'min': return vals.length ? Math.min(...vals).toLocaleString(undefined, fmt) : '';
+                case 'max': return vals.length ? Math.max(...vals).toLocaleString(undefined, fmt) : '';
+            }
+        }
+        return '';
+    }
+
+    /** Returns cssClass merged with auto text-align.
+     *  Numeric columns → text-right; others → default (left).
+     *  If base already contains an explicit alignment class, skip auto-align. */
+    getAutoAlignClass(base: string | undefined, col: ColumnDef): string {
+        const cls = base || '';
+        if (cls.includes('text-right') || cls.includes('text-left') || cls.includes('text-center')) {
+            return cls;
+        }
+        return (cls + (col.filterType === 'numeric' ? ' text-right' : '')).trim();
+    }
+
     // --- Cell Editing ---
     @Input() editMode: 'cell' | 'row' | undefined = undefined;
 
@@ -136,7 +199,7 @@ export class CustomTable implements OnChanges {
     filterOptionsCache: { [field: string]: { label: string; value: any }[] } = {};
 
     ngOnChanges(changes: SimpleChanges): void {
-        if (changes['data']) {
+        if (changes['data'] || changes['columns']) {
             this.buildFilterOptionsCache();
         }
         if (changes['columns'] && this.columns) {
@@ -148,14 +211,18 @@ export class CustomTable implements OnChanges {
         return this._allColumns.filter(c => !this._hiddenFields.has(c.field));
     }
 
-    // --- Filter Options (auto-populated from data) ---
+    // --- Filter Options (auto-populated from data, or lazy-loaded) ---
     buildFilterOptionsCache() {
         this.filterOptionsCache = {};
-        if (!this._data?.length || !this.columns?.length) return;
+        if (!this.columns?.length) return;
         for (const col of this.columns) {
-            if (col.filterOptions) {
+            if (col.filterLoadOptions) {
+                Promise.resolve(col.filterLoadOptions()).then(opts => {
+                    this.filterOptionsCache[col.field] = opts;
+                });
+            } else if (col.filterOptions) {
                 this.filterOptionsCache[col.field] = col.filterOptions;
-            } else if (col.filterMode === 'dropdown' || col.filterMode === 'multiselect') {
+            } else if ((col.filterMode === 'dropdown' || col.filterMode === 'multiselect') && this._data?.length) {
                 const unique = [...new Set(this._data.map(d => d[col.field]).filter(v => v != null))];
                 this.filterOptionsCache[col.field] = unique.map(v => ({ label: String(v), value: v }));
             }
@@ -165,6 +232,7 @@ export class CustomTable implements OnChanges {
     getFilterOptions(col: ColumnDef): { label: string; value: any }[] {
         return this.filterOptionsCache[col.field] || [];
     }
+
 
     onGlobalFilter(event: Event) {
         const value = (event.target as HTMLInputElement).value;
@@ -218,7 +286,14 @@ export class CustomTable implements OnChanges {
         }
         if (col.editType === 'table-lookup' && col.editLookupConfig) {
             const cfg = col.editLookupConfig;
-            const row = cfg.data.find(d => d[cfg.valueField] === val);
+            const source = cfg.data || this.lookupDataCache[col.field] || [];
+            if (cfg.multiSelect && Array.isArray(val)) {
+                return val.map(v => {
+                    const r = source.find(d => d[cfg.valueField] === v);
+                    return r ? r[cfg.displayField || cfg.valueField] : v;
+                }).join(', ');
+            }
+            const row = source.find(d => d[cfg.valueField] === val);
             if (row) return row[cfg.displayField || cfg.valueField];
         }
         return val != null ? val : '';
@@ -239,50 +314,135 @@ export class CustomTable implements OnChanges {
         return result;
     }
 
-    openTableLookup(event: Event, col: ColumnDef, rowData: any) {
+    async openTableLookup(event: Event, col: ColumnDef, rowData: any) {
         this.activeLookupCol = col;
         this.activeLookupRowData = rowData;
         this.lookupSearchText = '';
-        this.lookupFilteredData = col.editLookupConfig?.data || [];
-        this.lookupPanel.show(event);
+        this.lookupColFilters = {};
+        this.lookupSelectedRows = [];
+        clearTimeout(this.lookupDebounceTimer);
+
+        const cfg = col.editLookupConfig!;
+
+        // Show panel immediately (may show loading spinner)
+        this.lookupPanel.hide();
+        setTimeout(() => this.lookupPanel.show(event));
+
+        if (cfg.loadData) {
+            this.lookupLoading = true;
+            this.lookupFilteredData = [];
+            try {
+                const result = await Promise.resolve(cfg.loadData(''));
+                this.lookupFilteredData = result;
+                this.lookupDataCache[col.field] = result; // cache for formatValue
+            } finally {
+                this.lookupLoading = false;
+            }
+        } else {
+            this.lookupFilteredData = cfg.data || [];
+        }
+
+        // Init selected rows after data is available
+        if (cfg.multiSelect) {
+            const currentVal: any[] = rowData[col.field] ?? [];
+            this.lookupSelectedRows = this.lookupFilteredData.filter(r => currentVal.includes(r[cfg.valueField]));
+        }
     }
 
     filterLookupData() {
         const cfg = this.activeLookupCol?.editLookupConfig;
         if (!cfg) return;
-        const term = this.lookupSearchText.toLowerCase();
-        if (!term) {
-            this.lookupFilteredData = cfg.data;
+
+        if (cfg.loadData) {
+            // Debounce API calls by 300ms
+            clearTimeout(this.lookupDebounceTimer);
+            this.lookupDebounceTimer = setTimeout(async () => {
+                this.lookupLoading = true;
+                try {
+                    const result = await Promise.resolve(cfg.loadData!(this.lookupSearchText));
+                    // Apply column-level filters client-side on returned data
+                    this.lookupFilteredData = this.applyLookupColFilters(cfg, result);
+                } finally {
+                    this.lookupLoading = false;
+                }
+            }, 300);
             return;
         }
-        this.lookupFilteredData = cfg.data.filter(row =>
-            cfg.columns.some(c => {
+
+        // Static data: filter client-side
+        const globalTerm = this.lookupSearchText.toLowerCase();
+        this.lookupFilteredData = (cfg.data || []).filter(row => {
+            if (globalTerm) {
+                const matchesGlobal = cfg.columns.some(c => {
+                    const val = row[c.field];
+                    return val != null && String(val).toLowerCase().includes(globalTerm);
+                });
+                if (!matchesGlobal) return false;
+            }
+            return this.applyLookupColFilters(cfg, [row]).length > 0;
+        });
+    }
+
+    private applyLookupColFilters(cfg: EditLookupConfig, data: any[]): any[] {
+        return data.filter(row =>
+            cfg.columns.every((c: { field: string }) => {
+                const colTerm = (this.lookupColFilters[c.field] || '').toLowerCase();
+                if (!colTerm) return true;
                 const val = row[c.field];
-                return val != null && String(val).toLowerCase().includes(term);
+                return val != null && String(val).toLowerCase().includes(colTerm);
             })
         );
     }
 
+    /** Single-select: click any cell → select and close */
     selectLookupRow(row: any) {
-        if (this.activeLookupCol && this.activeLookupRowData) {
-            const cfg = this.activeLookupCol.editLookupConfig!;
-            this.activeLookupRowData[this.activeLookupCol.field] = row[cfg.valueField];
-            this.lookupSelect.emit({
-                selectedRow: row,
-                field: this.activeLookupCol.field,
-                rowData: this.activeLookupRowData
-            });
+        if (!this.activeLookupCol || !this.activeLookupRowData) return;
+        const cfg = this.activeLookupCol.editLookupConfig!;
+        if (cfg.multiSelect) return; // handled by toggleLookupRow
+        this.activeLookupRowData[this.activeLookupCol.field] = row[cfg.valueField];
+        this.lookupSelect.emit({ selectedRow: row, field: this.activeLookupCol.field, rowData: this.activeLookupRowData });
+        this.lookupPanel.hide();
+        this.activeLookupCol = null;
+        this.activeLookupRowData = null;
+    }
+
+    /** Multi-select: click checkbox to toggle row */
+    toggleLookupRow(row: any) {
+        const cfg = this.activeLookupCol?.editLookupConfig;
+        if (!cfg) return;
+        const idx = this.lookupSelectedRows.findIndex(r => r[cfg.valueField] === row[cfg.valueField]);
+        if (idx >= 0) {
+            this.lookupSelectedRows = this.lookupSelectedRows.filter((_, i) => i !== idx);
+        } else {
+            this.lookupSelectedRows = [...this.lookupSelectedRows, row];
         }
+    }
+
+    /** Multi-select: confirm button → apply and close */
+    confirmLookupSelection() {
+        if (!this.activeLookupCol || !this.activeLookupRowData) return;
+        const cfg = this.activeLookupCol.editLookupConfig!;
+        this.activeLookupRowData[this.activeLookupCol.field] =
+            this.lookupSelectedRows.map(r => r[cfg.valueField]);
+        this.lookupSelect.emit({
+            selectedRow: this.lookupSelectedRows,
+            field: this.activeLookupCol.field,
+            rowData: this.activeLookupRowData
+        });
         this.lookupPanel.hide();
         this.activeLookupCol = null;
         this.activeLookupRowData = null;
     }
 
     isLookupRowSelected(row: any): boolean {
-        if (!this.activeLookupCol || !this.activeLookupRowData) return false;
-        const cfg = this.activeLookupCol.editLookupConfig;
+        const cfg = this.activeLookupCol?.editLookupConfig;
         if (!cfg) return false;
-        return this.activeLookupRowData[this.activeLookupCol.field] === row[cfg.valueField];
+        if (cfg.multiSelect) {
+            return this.lookupSelectedRows.some(r => r[cfg.valueField] === row[cfg.valueField]);
+        }
+        if (!this.activeLookupRowData) return false;
+        const cur = this.activeLookupRowData[this.activeLookupCol!.field];
+        return cur === row[cfg.valueField];
     }
 
     // =============================================
@@ -400,7 +560,31 @@ export class CustomTable implements OnChanges {
         this.rowReorder.emit(event);
     }
 
-    onCellEditComplete(event: any) {
+    onColResize() {
+        // After resize, recalculate sticky left offsets for frozen columns.
+        // PrimeNG doesn't re-run initFrozenColumns on resize in v21.
+        setTimeout(() => this.recalcFrozenPositions());
+    }
+
+    private recalcFrozenPositions() {
+        const host = (this.dt as any).el?.nativeElement as HTMLElement;
+        if (!host) return;
+        ['thead', 'tbody', 'tfoot'].forEach(section => {
+            const rows = host.querySelectorAll<HTMLTableRowElement>(`${section} tr`);
+            rows.forEach(row => {
+                let offset = 0;
+                const cells = row.querySelectorAll<HTMLElement>(
+                    '.p-datatable-frozen-column:not(.p-datatable-frozen-column-right)'
+                );
+                cells.forEach(cell => {
+                    cell.style.left = offset + 'px';
+                    offset += cell.offsetWidth;
+                });
+            });
+        });
+    }
+
+    onCellEditComplete(_event: any) {
         // Cell edit is handled inline by PrimeNG
     }
 

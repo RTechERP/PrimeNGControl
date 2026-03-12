@@ -1,12 +1,18 @@
 export interface EditLookupConfig {
-    /** Data source for the lookup table popup */
-    data: any[];
+    /** Static data source. Optional when loadData is provided (used as fallback for display). */
+    data?: any[];
+    /** Lazy load function: called on popup open and on global search input change.
+     *  Receives the current search query. Returns array or Promise<array>.
+     *  When provided, the popup table data comes from this function. */
+    loadData?: (query: string) => any[] | Promise<any[]>;
     /** Columns displayed in the lookup popup */
     columns: { field: string; header: string; width?: string }[];
     /** Field from selected row to store as the cell value */
     valueField: string;
     /** Field from selected row to display in the cell (defaults to valueField) */
     displayField?: string;
+    /** Allow selecting multiple rows. Cell value becomes an array of valueField values. Default: false */
+    multiSelect?: boolean;
 }
 
 export interface ColumnDef {
@@ -22,6 +28,14 @@ export interface ColumnDef {
     filterMode?: 'input' | 'dropdown' | 'multiselect';
     /** Manual filter options. If empty, auto-populated from data. Format: [{label, value}] */
     filterOptions?: { label: string; value: any }[];
+    /** Lazy load function for filter dropdown/multiselect options.
+     *  Takes priority over filterOptions and auto-generated options from data.
+     *  Called once when columns/data initialize. Returns options or Promise<options>. */
+    filterLoadOptions?: () => { label: string; value: any }[] | Promise<{ label: string; value: any }[]>;
+    /** Enable virtual scroll for multiselect filter (for large option lists). Default: false */
+    filterVirtualScroll?: boolean;
+    /** Virtual scroll item height in px. Default: 30 */
+    filterVirtualScrollItemSize?: number;
     /** Enable sorting on this column */
     sortable?: boolean;
     /** Freeze this column */
@@ -52,4 +66,17 @@ export interface ColumnDef {
     /** Configuration for table-lookup editor.
      *  Used when editType is 'table-lookup'. Renders a popup overlay with searchable table. */
     editLookupConfig?: EditLookupConfig;
+    /** Built-in footer aggregate. Applied automatically when showFooter=true.
+     *  'sum' | 'avg' | 'count' | 'min' | 'max'
+     *  Overridden by `footer` if both are set. */
+    footerType?: 'sum' | 'avg' | 'count' | 'min' | 'max';
+    /** Number format options for footerType aggregates (Intl.NumberFormatOptions).
+     *  Example: { minimumFractionDigits: 2, maximumFractionDigits: 2 } */
+    footerFormat?: Intl.NumberFormatOptions;
+    /** Footer cell content. Static string or function receiving the full dataset.
+     *  Example: 'Total' | (data) => data.reduce((s, r) => s + r.price, 0).toLocaleString() */
+    footer?: string | ((data: any[]) => string);
+    /** CSS class(es) applied to the footer cell only (overrides cssClass for footer).
+     *  If omitted, cssClass is used. */
+    footerClass?: string;
 }

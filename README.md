@@ -34,6 +34,9 @@ interface ColumnDef {
   filterType?: string;       // Loại filter: 'text' | 'numeric' | 'date'
   filterMode?: string;       // Giao diện filter: 'input' | 'dropdown' | 'multiselect'
   filterOptions?: array;     // Tùy chọn filter thủ công: [{ label, value }]
+  filterLoadOptions?: () => Promise<{label,value}[]>; // Lazy-load options 1 lần khi khởi tạo
+  filterVirtualScroll?: boolean;        // Virtual scroll cho multiselect filter
+  filterVirtualScrollItemSize?: number; // Chiều cao item (px) khi dùng virtual scroll
   sortable?: boolean;        // Cho phép sắp xếp cột
   frozen?: boolean;          // Đóng băng cột (cố định khi cuộn ngang)
   alignFrozen?: string;      // Hướng đóng băng: 'left' | 'right'
@@ -42,9 +45,23 @@ interface ColumnDef {
   cssClass?: string;         // Class CSS cho cả header và cell
   format?: (v, row) => str;  // Hàm format hiển thị tùy chỉnh
   editType?: string;         // 'text'|'number'|'date'|'lookup'|'table-lookup'|'textarea'
+  editOptions?: {label,value}[]; // Options cho editType='lookup' (p-select dropdown)
   editDateFormat?: string;   // Định dạng PrimeNG cho date picker (vd: 'dd/mm/yy')
   editShowTime?: boolean;    // Hiện bộ chọn giờ cho date picker
-  editLookupConfig?: any;    // Cấu hình cho table-lookup
+  editLookupConfig?: EditLookupConfig; // Cấu hình cho editType='table-lookup'
+  footerType?: string;       // Tổng kết footer: 'sum'|'avg'|'count'|'min'|'max'
+  footerFormat?: object;     // Intl.NumberFormatOptions cho footerType aggregates
+  footer?: string | ((data) => string); // Nội dung footer tùy chỉnh
+  footerClass?: string;      // Class CSS riêng cho footer cell
+}
+
+interface EditLookupConfig {
+  data?: any[];              // Dữ liệu tĩnh (tùy chọn nếu dùng loadData)
+  loadData?: (query: string) => any[] | Promise<any[]>; // Lazy-load khi mở popup
+  columns: {field, header, width?}[]; // Các cột hiển thị trong popup
+  valueField: string;        // Field lấy giá trị để lưu
+  displayField?: string;     // Field hiển thị lại trong cell (mặc định = valueField)
+  multiSelect?: boolean;     // true = checkbox + nút Xác nhận; false = click chọn ngay
 }
 ```
 
@@ -90,6 +107,20 @@ interface ColumnDef {
 | `expandableRowGroups` | `boolean` | `false` | Cho phép thu gọn/mở rộng nhóm |
 | `stateKey` | `string\|undefined` | `undefined` | Key lưu trạng thái bảng |
 | `stateStorage` | `string` | `'local'` | Nơi lưu: `'local'` hoặc `'session'` |
+| `showFooter` | `boolean` | `false` | Hiển thị hàng tổng kết (footer) |
+| `clickSelectRow` | `boolean` | `false` | Click vào cell để highlight dòng (single active row) |
+| `filterDisplay` | `string` | `'row'` | Kiểu hiển thị filter: `'row'` hoặc `'menu'` |
+| `rowGroupShowFooter` | `boolean` | `false` | Hiện footer trong mỗi nhóm (khi dùng row grouping) |
+
+---
+
+## 📤 @Output()
+
+| Output | Kiểu event | Mô tả |
+|--------|-----------|-------|
+| `rowClick` | `any` | Phát ra khi click vào dòng (khi `clickSelectRow=true`) |
+| `lookupSelect` | `{selectedRow, field, rowData}` | Phát ra khi chọn xong từ table-lookup |
+| `rowReorder` | PrimeNG event | Phát ra khi kéo thả đổi thứ tự dòng |
 
 ---
 
@@ -194,16 +225,32 @@ products = [
 
 ### 5. ❄️ Đóng băng cột (Frozen Columns)
 
-Cố định cột khi cuộn ngang. **Yêu cầu:** `scrollable` phải bật.
+Cố định cột khi cuộn ngang. **Yêu cầu:** `[scrollable]="true"` và `[showGridlines]="true"` phải bật.
 
 ```typescript
-{ field: 'code', header: 'Mã', frozen: true, alignFrozen: 'left' }
-{ field: 'actions', header: 'Thao tác', frozen: true, alignFrozen: 'right' }
+// Cột cố định bên trái
+{ field: 'id', header: 'ID', width: '70px', frozen: true, alignFrozen: 'left' }
+
+// Cột cố định bên phải
+{ field: 'salary', header: 'Lương', width: '120px', frozen: true, alignFrozen: 'right' }
+
+// Cột cuộn bình thường (đặt đủ nhiều để cần cuộn ngang)
+{ field: 'name', header: 'Họ tên', width: '180px' }
+{ field: 'department', header: 'Phòng ban', width: '150px' }
+// ... các cột khác ...
 ```
 
 ```html
-<app-custom-table [scrollable]="true" scrollHeight="400px" ...>
+<app-custom-table
+  [scrollable]="true"
+  scrollHeight="350px"
+  [showGridlines]="true"
+  dataKey="id"
+  ...>
+</app-custom-table>
 ```
+
+> **Lưu ý:** Không cần set `alignFrozen` nếu đã là `'left'` (mặc định). Nên dùng `width` dạng `px` cho frozen columns để tránh layout shift.
 
 ---
 
@@ -359,7 +406,11 @@ menuItems: MenuItem[] = [
 <app-custom-table [reorderableColumns]="true" ...>
 ```
 
-Kéo thả header cột để đổi vị trí.
+Kéo thả **header cột** để đổi vị trí. Vị trí cột chỉ ảnh hưởng UI, không thay đổi mảng `columns`.
+
+> **Lưu ý:**
+> - Cột `frozen` không thể kéo ra khỏi vị trí fixed của nó
+> - Kết hợp `stateKey` để lưu thứ tự cột sau khi reload trang
 
 ---
 
@@ -556,6 +607,182 @@ Tự động lưu và khôi phục trạng thái sort, filter, pagination khi re
 ```html
 <app-custom-table [showGridlines]="true" ...>
 ```
+
+---
+
+### 24. ⏳ Lazy loading dữ liệu bảng chính
+
+Component nhận dữ liệu qua `[data]`. Để lazy load từ API, dùng `[loading]` kết hợp với async binding:
+
+```html
+<app-custom-table
+  [data]="tableData"
+  [loading]="isLoading"
+  [columns]="columns"
+  dataKey="id">
+</app-custom-table>
+```
+
+```typescript
+tableData: any[] = [];
+isLoading = true;
+
+ngOnInit() {
+  this.apiService.getProducts().subscribe(data => {
+    this.tableData = data;
+    this.isLoading = false;
+  });
+}
+```
+
+> **Khi `[loading]="true"`**, bảng hiển thị skeleton spinner thay cho dữ liệu.
+
+---
+
+### 25. 🔄 Lazy loading popup Table-Lookup (`loadData`)
+
+Thay vì truyền `data` tĩnh, dùng `loadData` để gọi API mỗi khi mở popup và khi người dùng tìm kiếm.
+
+```typescript
+{
+  field: 'projectId',
+  header: 'Dự án',
+  editable: true,
+  editType: 'table-lookup',
+  editLookupConfig: {
+    // loadData được gọi: (1) khi mở popup với query='', (2) khi gõ tìm kiếm
+    loadData: (query: string) => new Promise<any[]>(resolve =>
+      setTimeout(() => {
+        const all = [
+          { code: 'PRJ-001', name: 'Website Redesign', client: 'Acme Corp' },
+          { code: 'PRJ-002', name: 'Mobile App v2', client: 'TechStart' },
+        ];
+        const q = query.toLowerCase();
+        resolve(q ? all.filter(p =>
+          Object.values(p).some(v => String(v).toLowerCase().includes(q))
+        ) : all);
+      }, 400)
+    ),
+    columns: [
+      { field: 'code', header: 'Mã DA', width: '100px' },
+      { field: 'name', header: 'Tên dự án', width: '180px' },
+      { field: 'client', header: 'Khách hàng', width: '120px' },
+    ],
+    valueField: 'code',
+    displayField: 'name'
+  }
+}
+```
+
+> **Cơ chế:**
+> - Khi mở popup → gọi `loadData('')` → hiện spinner → load xong hiện bảng
+> - Khi gõ tìm kiếm → debounce 300ms → gọi `loadData(query)` → cập nhật kết quả
+> - Có thể dùng cả `data` (fallback) và `loadData` cùng lúc
+
+---
+
+### 26. 📋 Lazy loading options Select Filter (`filterLoadOptions`)
+
+Lazy-load danh sách option cho filter `dropdown`/`multiselect` — gọi 1 lần khi khởi tạo.
+
+```typescript
+{
+  field: 'category',
+  header: 'Danh mục',
+  filterMode: 'dropdown',
+  // Không cần filterOptions thủ công — gọi API 1 lần khi init
+  filterLoadOptions: () => this.apiService.getCategories().then(cats =>
+    cats.map(c => ({ label: c.name, value: c.id }))
+  )
+}
+```
+
+Hoặc với `Promise`:
+```typescript
+filterLoadOptions: () => new Promise(resolve =>
+  setTimeout(() => resolve([
+    { label: 'Accessories', value: 'Accessories' },
+    { label: 'Clothing', value: 'Clothing' },
+    { label: 'Fitness', value: 'Fitness' },
+  ]), 500)
+)
+```
+
+> **Lưu ý:** `filterLoadOptions` không nhận query — dùng `filterVirtualScroll: true` cho danh sách lớn.
+
+---
+
+### 27. 📊 Footer tổng kết (Footer)
+
+#### Bật footer:
+```html
+<app-custom-table [showFooter]="true" ...>
+```
+
+#### Footer tự động (built-in aggregates):
+```typescript
+// Tổng
+{ field: 'quantity', header: 'SL', filterType: 'numeric', footerType: 'sum' }
+
+// Trung bình (có format số)
+{
+  field: 'price', header: 'Giá',
+  filterType: 'numeric',
+  footerType: 'avg',
+  footerFormat: { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+}
+
+// Đếm số dòng
+{ field: 'name', header: 'Tên', footerType: 'count' }
+
+// Min / Max
+{ field: 'score', header: 'Điểm', footerType: 'min' }
+{ field: 'score', header: 'Điểm', footerType: 'max' }
+```
+
+> `footerType` dùng `Intl.NumberFormat` — `footerFormat` nhận `Intl.NumberFormatOptions`.
+
+#### Footer tùy chỉnh (custom function):
+```typescript
+// Static text
+{ field: 'name', header: 'Tên', footer: 'Tổng cộng' }
+
+// Dynamic — nhận toàn bộ data
+{
+  field: 'status', header: 'Trạng thái',
+  footer: (data) => `Done: ${data.filter(r => r.status === 'Done').length} / ${data.length}`,
+  footerClass: 'text-center font-semibold'
+}
+```
+
+> **Ưu tiên:** `footer` (custom) > `footerType` (built-in). Nếu cả hai được set, `footer` thắng.
+
+---
+
+### 28. 🖱️ Click Row Select kết hợp Multi-Select Checkbox
+
+Kết hợp `[clickSelectRow]` với `selectionMode="multiple"` để có **2 hành vi độc lập**:
+- **Click vào cell** → highlight dòng đó (single active row, bỏ highlight dòng cũ)
+- **Tick checkbox** → multi-select checkbox (độc lập với click)
+
+```html
+<app-custom-table
+  [data]="users"
+  [columns]="columns"
+  dataKey="id"
+  [clickSelectRow]="true"
+  (rowClick)="activeRow = $event"
+  selectionMode="multiple"
+  [(selection)]="checkedRows">
+</app-custom-table>
+```
+
+```typescript
+activeRow: any = null;       // Dòng đang được highlight (click)
+checkedRows: any[] = [];     // Các dòng đang được tick checkbox
+```
+
+> **Use case:** Highlight dòng đang làm việc (sửa, xem chi tiết) trong khi vẫn cho phép chọn nhiều dòng để xóa hàng loạt.
 
 ---
 
