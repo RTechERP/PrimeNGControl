@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ViewChild, OnChanges, SimpleChanges, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ViewChild, OnChanges, SimpleChanges, inject, HostListener, HostBinding, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TableModule, Table } from 'primeng/table';
@@ -38,6 +38,9 @@ export class CustomTable implements OnChanges {
     @ViewChild('cm') cm!: ContextMenu;
     @ViewChild('hcm') hcm!: ContextMenu;
     @ViewChild('lookupPanel') lookupPanel!: Popover;
+
+    private el = inject(ElementRef);
+    @HostBinding('attr.tabindex') tabindex = '0';
     
     // --- Highlighting State ---
     globalFilterValue: string = '';
@@ -58,6 +61,9 @@ export class CustomTable implements OnChanges {
     lookupSelectedRows: any[] = [];
     /** Cache of last-loaded data per field (for formatValue when using loadData) */
     private lookupDataCache: { [field: string]: any[] } = {};
+
+    // --- Cell Focus State ---
+    focusedCell: { rowData: any, colField: string } | null = null;
     private lookupDebounceTimer: any = null;
 
     // --- Data ---
@@ -773,5 +779,46 @@ export class CustomTable implements OnChanges {
     toggleChooserColumnVisible(event: any, field: string) {
         event.stopPropagation();
         this.toggleColumnVisible(field);
+    }
+
+    // =============================================
+    // Cell Focus & Copy
+    // =============================================
+    onCellClick(event: MouseEvent, col: ColumnDef, rowData: any) {
+        // Set focus state
+        this.focusedCell = { rowData, colField: col.field };
+
+        // Ensure this component host gets browser focus for keyboard events
+        this.el.nativeElement.focus();
+
+        // Handle original table-lookup click behavior
+        if (col.editType === 'table-lookup' && col.editable && this.editMode) {
+            this.openTableLookup(event, col, rowData);
+        }
+    }
+
+    isCellFocused(rowData: any, colField: string): boolean {
+        return this.focusedCell?.rowData === rowData && this.focusedCell?.colField === colField;
+    }
+
+    @HostListener('keydown', ['$event'])
+    onKeydown(event: KeyboardEvent) {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
+            if (this.focusedCell) {
+                // Determine the cell value
+                const colDef = this.columns.find(c => c.field === this.focusedCell?.colField);
+                let textToCopy = '';
+                if (colDef) {
+                    const rawValue = this.focusedCell.rowData[colDef.field];
+                    textToCopy = colDef.format ? colDef.format(rawValue, this.focusedCell.rowData) : rawValue;
+                }
+
+                if (textToCopy !== undefined && textToCopy !== null) {
+                    navigator.clipboard.writeText(String(textToCopy)).catch(err => {
+                        console.error('Failed to copy cell text: ', err);
+                    });
+                }
+            }
+        }
     }
 }

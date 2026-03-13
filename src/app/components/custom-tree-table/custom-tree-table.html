@@ -94,9 +94,11 @@
         <tr [ttRow]="rowNode" [ttSelectableRow]="rowNode" [ttContextMenuRow]="contextMenuItems.length > 0 ? rowNode : null"
             [ngClass]="rowClass ? rowClass(rowData) : ''"
             (click)="onRowClick(rowNode)" [class.row-click-selected]="isRowClicked(rowNode)">
-            <td *ngFor="let col of columns; let i = index" [ngClass]="col.cssClass" [ngStyle]="col.style"
+            <td *ngFor="let col of columns; let i = index" [ngStyle]="col.style"
+                [ngClass]="[col.cssClass || '', isCellFocused(rowData, col.field) ? 'focused-cell' : '']"
                 [ttEditableColumn]="col.editable && editMode && !(i === 0 && selectionMode === 'checkbox') && col.editType !== 'table-lookup' ? rowData : null"
-                [ttEditableColumnField]="col.editable && editMode && !(i === 0 && selectionMode === 'checkbox') && col.editType !== 'table-lookup' ? col.field : ''">
+                [ttEditableColumnField]="col.editable && editMode && !(i === 0 && selectionMode === 'checkbox') && col.editType !== 'table-lookup' ? col.field : ''"
+                (click)="onCellClick($event, col, rowData)">
 
                 <!-- First column: tree toggler + checkbox -->
                 <ng-container *ngIf="i === 0">

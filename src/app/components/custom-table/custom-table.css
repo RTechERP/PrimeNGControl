@@ -1,7 +1,12 @@
+:host:focus {
+    outline: none;
+}
+
 /* Centering Table Headers */
 :host ::ng-deep .p-datatable-thead>tr>th {
     text-align: center;
     justify-content: center;
+    width: 100% !important;
 }
 
 /* =====================================================
@@ -21,6 +26,26 @@
 :host ::ng-deep .p-datatable-gridlines .p-datatable-tbody > tr > td.p-datatable-frozen-column,
 :host ::ng-deep .p-datatable-gridlines .p-datatable-tfoot > tr > td.p-datatable-frozen-column {
     border-inline-end-width: 1px;
+}
+
+/* Distinct boundary for frozen columns (DevExpress-like drop shadow and border) */
+:host ::ng-deep .frozen-left {
+    box-shadow: 4px 0 6px -2px rgba(0, 0, 0, 0.08) !important;
+    border-right: 1px solid var(--p-surface-300, #cbd5e1) !important;
+}
+
+:host ::ng-deep .frozen-right {
+    box-shadow: -4px 0 6px -2px rgba(0, 0, 0, 0.08) !important;
+    border-left: 1px solid var(--p-surface-300, #cbd5e1) !important;
+}
+
+/* Ensure frozen cells have an opaque background so scrolling text doesn't bleed through */
+:host ::ng-deep .p-datatable .p-datatable-thead > tr > th.p-frozen-column {
+    background-color: var(--p-surface-50, #f8fafc) !important;
+}
+:host ::ng-deep .p-datatable .p-datatable-tbody > tr > td.p-frozen-column,
+:host ::ng-deep .p-datatable .p-datatable-tfoot > tr > td.p-frozen-column {
+    background-color: var(--p-surface-0, #ffffff) !important;
 }
 
 /* Ensuring Filters fill the column width correctly */
@@ -232,4 +257,12 @@
     border-radius: 2px;
     font-weight: bold;
     color: #000;
+}
+
+/* Cell Focus Selection */
+:host ::ng-deep .focused-cell {
+    outline: 2px solid var(--p-primary-color, #3b82f6) !important;
+    outline-offset: -2px; /* Keeps the outline inside the cell bounds */
+    position: relative;
+    z-index: 1;
 }

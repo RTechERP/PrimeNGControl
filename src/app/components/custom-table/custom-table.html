@@ -59,13 +59,14 @@
             <!-- Expand toggle header -->
             <th *ngIf="expandable" style="width: 4rem"></th>
             <!-- Checkbox header for multiple selection -->
-            <th *ngIf="selectionMode === 'multiple'" style="width: 3rem" pFrozenColumn [frozen]="true">
+            <th *ngIf="selectionMode === 'multiple'" style="width: 3rem" pFrozenColumn [frozen]="true" class="frozen-left">
                 <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
             </th>
             <th *ngFor="let col of columns" pResizableColumn [pSortableColumn]="col.field"
                 [pSortableColumnDisabled]="!col.sortable" pFrozenColumn [frozen]="col.frozen || false"
                 [alignFrozen]="col.alignFrozen || 'left'" [style.width]="col.width || 'auto'" pReorderableColumn
-                [pReorderableColumnDisabled]="!reorderableColumns" [ngClass]="col.cssClass"
+                [pReorderableColumnDisabled]="!reorderableColumns" 
+                [ngClass]="[col.cssClass || '', col.frozen ? (col.alignFrozen === 'right' ? 'frozen-right' : 'frozen-left') : '']"
                 (contextmenu)="onHeaderContextMenu($event, col.field)">
                 <div class="flex align-items-center justify-content-between gap-1">
                     <span>{{ col.header }}</span>
@@ -249,7 +250,7 @@
                 </p-button>
             </td>
             <!-- Checkbox for multiple selection -->
-            <td *ngIf="selectionMode === 'multiple'" pFrozenColumn [frozen]="true">
+            <td *ngIf="selectionMode === 'multiple'" pFrozenColumn [frozen]="true" class="frozen-left">
                 <p-tableCheckbox [value]="rowData"></p-tableCheckbox>
             </td>
             <!-- Data columns -->
@@ -257,9 +258,9 @@
                 [alignFrozen]="col.alignFrozen || 'left'"
                 [pEditableColumn]="col.editable && editMode && col.editType !== 'table-lookup' && col.editType !== 'progressbar' && col.editType !== 'badge' ? rowData : null"
                 [pEditableColumnField]="col.editable && editMode && col.editType !== 'table-lookup' && col.editType !== 'progressbar' && col.editType !== 'badge' ? col.field : ''"
-                [ngClass]="[getAutoAlignClass(col.cssClass, col), col.cellClass ? col.cellClass(rowData) : '']"
+                [ngClass]="[getAutoAlignClass(col.cssClass, col), col.cellClass ? col.cellClass(rowData) : '', col.frozen ? (col.alignFrozen === 'right' ? 'frozen-right' : 'frozen-left') : '', isCellFocused(rowData, col.field) ? 'focused-cell' : '']"
                 [ngStyle]="col.cellStyle ? col.cellStyle(rowData) : null"
-                (click)="col.editType === 'table-lookup' && col.editable && editMode ? openTableLookup($event, col, rowData) : null">
+                (click)="onCellClick($event, col, rowData)">
 
                 <!-- Table Lookup: click cell to open popup directly -->
                 <ng-container *ngIf="col.editType === 'table-lookup' && col.editable && editMode; else normalCell">
