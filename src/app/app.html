@@ -16,7 +16,8 @@
           [showGridlines]="true" [showGlobalFilter]="true" [showColumnFilter]="true" [scrollable]="true"
           scrollHeight="350px" selectionMode="single" dataKey="id" [(selection)]="selectedProduct" [paginator]="true"
           [rows]="5" [rowsPerPageOptions]="[5, 10, 20]" [contextMenuItems]="productContextMenu" [stripedRows]="true"
-          [exportable]="true" exportFilename="products_export" stateKey="products-table-state">
+          [exportable]="true" exportFilename="products_export" stateKey="products-table-state"
+          [showFooter]="true">
         </app-custom-table>
         <div class="mt-2 text-sm text-600" *ngIf="selectedProduct">
           <strong>Selected:</strong> {{ selectedProduct.name }} ({{ selectedProduct.code }})
@@ -48,6 +49,79 @@
       <hr class="my-4 border-top-1 border-300" />
 
       <!-- ============================================ -->
+      <!-- TABLE 2b: filterDisplay="menu" — all filterMode variants -->
+      <!-- ============================================ -->
+      <section>
+        <h3 class="text-xl font-bold mb-2">🔽 Menu Filter — Products
+          <small class="text-sm font-normal text-500 ml-2">(filterDisplay="menu")</small>
+        </h3>
+        <div class="mb-3 text-sm text-600 flex flex-column gap-1">
+          <div><span class="font-semibold">Code, Name</span> → <code>filterMode</code> mặc định → text input trong popup</div>
+          <div><span class="font-semibold">Quantity, Price</span> → <code>filterType="numeric"</code> → numeric filter trong popup</div>
+          <div><span class="font-semibold">Category</span> → <code>filterMode="dropdown"</code> → single select (p-select) trong popup</div>
+          <div><span class="font-semibold">Status</span> → <code>filterMode="multiselect"</code> → multi select (p-multiSelect) trong popup</div>
+        </div>
+        <app-custom-table [data]="activeProducts" [columns]="menuFilterColumns" [resizable]="true"
+          [showGridlines]="true" [showColumnFilter]="true" filterDisplay="menu" [paginator]="true" [rows]="5"
+          [rowsPerPageOptions]="[5, 10, 20]" dataKey="id" [scrollable]="true" scrollHeight="300px">
+        </app-custom-table>
+
+        <h3 class="text-xl font-bold mb-2 mt-4">🔽 Menu Filter — Users (multiselect)
+          <small class="text-sm font-normal text-500 ml-2">(filterDisplay="menu")</small>
+        </h3>
+        <div class="mb-3 text-sm text-600">
+          <span class="font-semibold">Role, Department, Status</span> → <code>filterMode="multiselect"</code> — chọn nhiều giá trị cùng lúc
+        </div>
+        <app-custom-table [data]="users" [columns]="menuFilterUserColumns" [resizable]="true" [showGridlines]="true"
+          [showColumnFilter]="true" filterDisplay="menu" [paginator]="true" [rows]="5"
+          [rowsPerPageOptions]="[5, 10, 20]" dataKey="id">
+        </app-custom-table>
+      </section>
+
+      <hr class="my-4 border-top-1 border-300" />
+
+      <!-- ============================================ -->
+      <!-- TABLE 2d: Click Row Select + Checkbox Multi-Select -->
+      <!-- ============================================ -->
+      <section>
+        <h3 class="text-xl font-bold mb-2">🖱️ Click Row Select + Multi-Select
+          <small class="text-sm font-normal text-500 ml-2">([clickSelectRow] kết hợp selectionMode="multiple")</small>
+        </h3>
+        <div class="mb-3 text-sm text-600 flex flex-column gap-1">
+          <div>
+            <span class="font-semibold">Click cell bất kỳ</span> →
+            highlight dòng đó (single, bỏ highlight dòng cũ) — dùng để biết đang làm việc với dòng nào
+          </div>
+          <div>
+            <span class="font-semibold">Tick checkbox</span> →
+            multi-select độc lập — dùng để chọn nhiều dòng thao tác cùng lúc
+          </div>
+        </div>
+        <app-custom-table [data]="users" [columns]="clickSelectColumns" [resizable]="true" [showGridlines]="true"
+          [showColumnFilter]="false" dataKey="id" [clickSelectRow]="true" (rowClick)="selectedClickRow = $event"
+          selectionMode="multiple" [(selection)]="selectedClickRowsMulti" [paginator]="true" [rows]="5">
+        </app-custom-table>
+        <div class="mt-2 flex flex-column gap-1">
+          <div class="text-sm">
+            <strong>Active row:</strong>
+            <span *ngIf="selectedClickRow" class="ml-1">
+              {{ selectedClickRow.name }} — {{ selectedClickRow.role }} / {{ selectedClickRow.department }}
+            </span>
+            <span *ngIf="!selectedClickRow" class="text-400 ml-1">(chưa chọn)</span>
+          </div>
+          <div class="text-sm">
+            <strong>Checked ({{ selectedClickRowsMulti.length }}):</strong>
+            <span *ngIf="selectedClickRowsMulti.length" class="ml-1">
+              {{ selectedClickRowsMulti.map(r => r.name).join(', ') }}
+            </span>
+            <span *ngIf="!selectedClickRowsMulti.length" class="text-400 ml-1">(chưa tick checkbox nào)</span>
+          </div>
+        </div>
+      </section>
+
+      <hr class="my-4 border-top-1 border-300" />
+
+      <!-- ============================================ -->
       <!-- TABLE 3: Tasks — Cell Editing, Row Reorder, Column Reorder, Export -->
       <!-- ============================================ -->
       <section>
@@ -59,7 +133,32 @@
           [showGridlines]="true" [showColumnFilter]="false" dataKey="id" editMode="cell" [reorderableRows]="true"
           [reorderableColumns]="true" [exportable]="true" exportFilename="tasks_export" [paginator]="true" [rows]="10"
           [rowsPerPageOptions]="[5, 10, 20]" (rowReorder)="onRowReorder($event)"
-          (lookupSelect)="onLookupSelect($event)">
+          (lookupSelect)="onLookupSelect($event)" [clickSelectRow]="true" [showFooter]="true">
+        </app-custom-table>
+      </section>
+
+      <hr class="my-4 border-top-1 border-300" />
+
+      <!-- ============================================ -->
+      <!-- TABLE 3b: Lookup Demo — Single & Multi-Select -->
+      <!-- ============================================ -->
+      <section>
+        <h3 class="text-xl font-bold mb-2">🔍 Table-Lookup Demo
+          <small class="text-sm font-normal text-500 ml-2">(Single Select vs Multi Select)</small>
+        </h3>
+        <div class="mb-3 text-sm text-600 flex flex-column gap-1">
+          <div>
+            <span class="font-semibold">Product</span> →
+            <code>multiSelect: false</code> → click vào bất kỳ ô nào trong dòng để chọn &amp; đóng popup ngay
+          </div>
+          <div>
+            <span class="font-semibold">Tags</span> →
+            <code>multiSelect: true</code> → tick checkbox nhiều dòng, bấm <strong>Xác nhận</strong> để lưu
+          </div>
+        </div>
+        <app-custom-table [data]="lookupDemoData" [columns]="lookupDemoColumns" [resizable]="true"
+          [showGridlines]="true" [showColumnFilter]="false" dataKey="id" editMode="cell"
+          (lookupSelect)="onLookupSelect($event)" [clickSelectRow]="true">
         </app-custom-table>
       </section>
 
@@ -103,6 +202,26 @@
         <div class="mt-2 text-sm text-600">
           <strong>Selected:</strong> {{ selectedOrgNodes.length }} node(s)
         </div>
+      </section>
+
+      <hr class="my-4 border-top-1 border-300" />
+
+      <!-- ============================================ -->
+      <!-- TABLE: Frozen Columns + Gridlines Demo -->
+      <!-- ============================================ -->
+      <section>
+        <h3 class="text-xl font-bold mb-2">❄️ Frozen Columns + Gridlines
+          <small class="text-sm font-normal text-500 ml-2">(Cuộn ngang để thấy cột ID và Lương cố định)</small>
+        </h3>
+        <div class="mb-3 text-sm text-600 flex flex-column gap-1">
+          <div><span class="font-semibold">ID</span> → <code>frozen: true, alignFrozen: 'left'</code> — cột trái cố định</div>
+          <div><span class="font-semibold">Lương (USD)</span> → <code>frozen: true, alignFrozen: 'right'</code> — cột phải cố định</div>
+          <div>Bật <code>[showGridlines]="true"</code> + <code>[scrollable]="true"</code> để frozen columns hoạt động đúng</div>
+        </div>
+        <app-custom-table [data]="frozenDemoData" [columns]="frozenDemoColumns" dataKey="id"
+          [scrollable]="true" scrollHeight="300px" [showGridlines]="true" [showColumnFilter]="true"
+          [showFooter]="true" resizeMode="expand">
+        </app-custom-table>
       </section>
 
       <hr class="my-4 border-top-1 border-300" />

@@ -179,7 +179,7 @@ export class CustomTreeTable implements OnChanges {
         }
         if (col.editType === 'table-lookup' && col.editLookupConfig) {
             const cfg = col.editLookupConfig;
-            const row = cfg.data.find(d => d[cfg.valueField] === val);
+            const row = (cfg.data || []).find(d => d[cfg.valueField] === val);
             if (row) return row[cfg.displayField || cfg.valueField];
         }
         return val != null ? val : '';
@@ -201,7 +201,7 @@ export class CustomTreeTable implements OnChanges {
         this.activeLookupCol = col;
         this.activeLookupRowData = rowData;
         this.lookupSearchText = '';
-        this.lookupFilteredData = col.editLookupConfig?.data || [];
+        this.lookupFilteredData = col.editLookupConfig?.data ?? [];
         this.lookupPanel.show(event);
     }
 
@@ -210,10 +210,10 @@ export class CustomTreeTable implements OnChanges {
         if (!cfg) return;
         const term = this.lookupSearchText.toLowerCase();
         if (!term) {
-            this.lookupFilteredData = cfg.data;
+            this.lookupFilteredData = cfg.data || [];
             return;
         }
-        this.lookupFilteredData = cfg.data.filter(row =>
+        this.lookupFilteredData = (cfg.data || []).filter(row =>
             cfg.columns.some(c => {
                 const val = row[c.field];
                 return val != null && String(val).toLowerCase().includes(term);

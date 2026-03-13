@@ -4,6 +4,25 @@
     justify-content: center;
 }
 
+/* =====================================================
+   Frozen Column Fixes
+   ===================================================== */
+
+/* Fix 1: Hide resize handle on frozen header cells.
+   Resizing frozen columns with resizeMode="fit" creates a blank white gap.
+   Frozen columns have a fixed role (anchors) and should not be resized. */
+:host ::ng-deep .p-datatable-resizable-table > .p-datatable-thead > tr > th.p-datatable-frozen-column .p-datatable-column-resizer {
+    display: none;
+}
+
+/* Fix 2: Gridlines mode — add right border to ALL frozen columns so the separator
+   is always visible. PrimeNG's gridlines only add border-right to :last-child. */
+:host ::ng-deep .p-datatable-gridlines .p-datatable-thead > tr > th.p-datatable-frozen-column,
+:host ::ng-deep .p-datatable-gridlines .p-datatable-tbody > tr > td.p-datatable-frozen-column,
+:host ::ng-deep .p-datatable-gridlines .p-datatable-tfoot > tr > td.p-datatable-frozen-column {
+    border-inline-end-width: 1px;
+}
+
 /* Ensuring Filters fill the column width correctly */
 :host ::ng-deep .p-column-filter-row {
     width: 100% !important;
@@ -43,6 +62,12 @@
     word-break: break-word;
     display: block;
     width: 100%;
+}
+
+/* Click-to-select row highlight */
+:host ::ng-deep .p-datatable-tbody > tr.row-click-selected > td {
+    background: var(--p-primary-50, rgba(59, 130, 246, 0.08)) !important;
+    border-color: var(--p-primary-100, rgba(59, 130, 246, 0.2));
 }
 
 /* Table Lookup Popup */
