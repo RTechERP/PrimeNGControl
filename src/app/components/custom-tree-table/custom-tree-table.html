@@ -3,7 +3,7 @@
 
 <p-treeTable #tt [value]="data" [columns]="visibleColumns" [tableStyle]="{ 'min-width': '50rem' }"
     [resizableColumns]="resizable" [columnResizeMode]="resizeMode" [showGridlines]="showGridlines"
-    styleClass="p-treetable-gridlines p-treetable-sm" [globalFilterFields]="globalFilterFields"
+    styleClass="p-treetable-gridlines p-treetable-sm" [globalFilterFields]="actualGlobalFilterFields"
     [scrollable]="scrollable" [scrollHeight]="scrollable ? scrollHeight : ''" [paginator]="paginator" [rows]="rows"
     [rowsPerPageOptions]="rowsPerPageOptions" [sortMode]="sortMode" [selectionMode]="selectionMode ?? ''"
     [(selection)]="selection" (selectionChange)="onSelectionChange($event)" [dataKey]="dataKey" [loading]="loading"
@@ -12,8 +12,8 @@
     [virtualScroll]="virtualScroll" [virtualScrollItemSize]="virtualScrollItemSize" [filterMode]="'lenient'">
 
     <!-- Caption with Global Search + Export -->
-    <ng-template pTemplate="caption" *ngIf="title || showGlobalFilter || exportable">
-        <div class="flex justify-content-between align-items-center">
+    <ng-template pTemplate="caption">
+        <div *ngIf="title || showGlobalFilter || exportable" class="flex justify-content-between align-items-center">
             <h4 class="m-0">{{ title }}</h4>
             <div class="flex gap-2 align-items-center">
                 <p-button *ngIf="exportable" icon="pi pi-download" label="Export CSV" severity="success" [text]="true"
@@ -36,6 +36,20 @@
 
     <!-- Header Row -->
     <ng-template pTemplate="header" let-columns>
+        <!-- Multi-Level Header Groups (Banded Columns) -->
+        <ng-container *ngIf="headerGroups && headerGroups.length > 0">
+            <tr *ngFor="let groupRow of headerGroups">
+                <th *ngFor="let h of groupRow" 
+                    [attr.colspan]="h.colspan || 1" 
+                    [attr.rowspan]="h.rowspan || 1"
+                    [ngClass]="h.cssClass"
+                    [ngStyle]="h.style"
+                    class="text-center font-bold">
+                    {{ h.header }}
+                </th>
+            </tr>
+        </ng-container>
+
         <tr>
             <th *ngFor="let col of columns" [ttSortableColumn]="col.field" [ttSortableColumnDisabled]="!col.sortable"
                 [style.width]="col.width || 'auto'" ttReorderableColumn
@@ -77,9 +91,10 @@
 
     <!-- Body Row -->
     <ng-template pTemplate="body" let-rowNode let-rowData="rowData" let-columns="columns">
-        <tr [ttRow]="rowNode" [ttSelectableRow]="rowNode"
-            [ttContextMenuRow]="contextMenuItems.length > 0 ? rowNode : null">
-            <td *ngFor="let col of columns; let i = index" [ngClass]="col.cssClass"
+        <tr [ttRow]="rowNode" [ttSelectableRow]="rowNode" [ttContextMenuRow]="contextMenuItems.length > 0 ? rowNode : null"
+            [ngClass]="rowClass ? rowClass(rowData) : ''"
+            (click)="onRowClick(rowNode)" [class.row-click-selected]="isRowClicked(rowNode)">
+            <td *ngFor="let col of columns; let i = index" [ngClass]="col.cssClass" [ngStyle]="col.style"
                 [ttEditableColumn]="col.editable && editMode && !(i === 0 && selectionMode === 'checkbox') && col.editType !== 'table-lookup' ? rowData : null"
                 [ttEditableColumnField]="col.editable && editMode && !(i === 0 && selectionMode === 'checkbox') && col.editType !== 'table-lookup' ? col.field : ''">
 
@@ -133,26 +148,41 @@
                                 </ng-template>
                             </ng-template>
                             <ng-template pTemplate="output">
-                                <span
-                                    [class]="(col.textWrap !== undefined ? col.textWrap : (col.editType === 'textarea' ? true : textWrap)) ? 'wrap-text' : 'truncate-text'"
-                                    [title]="rowData[col.field]">
-                                    {{ formatValue(col, rowData) }}
-                                </span>
+                                <ng-container *ngTemplateOutlet="visualRenderer; context: {$implicit: col, rowData: rowData}"></ng-container>
                             </ng-template>
                         </p-treeTableCellEditor>
                     </ng-container>
 
                     <!-- Read-only cell -->
                     <ng-template #readOnlyCell>
-                        <span
-                            [class]="(col.textWrap !== undefined ? col.textWrap : (col.editType === 'textarea' ? true : textWrap)) ? 'wrap-text' : 'truncate-text'"
-                            [title]="rowData[col.field]">
-                            {{ formatValue(col, rowData) }}
-                        </span>
+                        <ng-container *ngTemplateOutlet="visualRenderer; context: {$implicit: col, rowData: rowData}"></ng-container>
                     </ng-template>
                 </ng-template>
             </td>
         </tr>
+    </ng-template>
+
+    <!-- Visual Renderer Template Fragment -->
+    <ng-template #visualRenderer let-col let-rowData="rowData">
+        <ng-container [ngSwitch]="col.editType">
+            <!-- Progress Bar -->
+            <p-progressBar *ngSwitchCase="'progressbar'" 
+                [value]="rowData[col.field]" 
+                [showValue]="true">
+            </p-progressBar>
+            
+            <!-- Badge -->
+            <p-tag *ngSwitchCase="'badge'" 
+                [value]="formatValue(col, rowData)" 
+                [severity]="col.badgeSeverity ? col.badgeSeverity(rowData) : undefined">
+            </p-tag>
+
+            <!-- Default Text -->
+            <div *ngSwitchDefault
+                [class]="(col.textWrap !== undefined ? col.textWrap : (col.editType === 'textarea' ? true : textWrap)) ? 'wrap-text' : 'truncate-text'"
+                [title]="rowData[col.field]" [innerHTML]="getHighlightedText(formatValue(col, rowData))">
+            </div>
+        </ng-container>
     </ng-template>
 
     <!-- Empty Message -->

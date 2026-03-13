@@ -27,7 +27,7 @@ export class App {
     { field: 'code', header: 'Code', width: '150px', sortable: true, frozen: true },
     { field: 'name', header: 'Name', width: '250px', sortable: true, textWrap: true },
     {
-      field: 'category', header: 'Category', width: '200px', sortable: true, filterMode: 'dropdown',
+      field: 'category', header: 'Category', width: '200px', sortable: true, filterMode: 'multiselect',
       // filterLoadOptions: lazy-load filter options (simulated 600ms API delay)
       filterLoadOptions: () => new Promise<{ label: string; value: any }[]>(resolve =>
         setTimeout(() => resolve([
@@ -86,7 +86,7 @@ export class App {
   userColumns: ColumnDef[] = [
     { field: 'name', header: 'Full Name', width: '25%', sortable: true },
     { field: 'email', header: 'Email', width: '25%', sortable: true },
-    { field: 'role', header: 'Role', width: '20%', sortable: true, filterMode: 'dropdown' },
+    { field: 'role', header: 'Role', width: '20%', sortable: true, filterMode: 'multiselect' },
     { field: 'department', header: 'Department', width: '15%', filterMode: 'dropdown' },
     { field: 'status', header: 'Status', width: '45%', filterMode: 'dropdown' },
   ];
@@ -137,7 +137,7 @@ export class App {
   // ==========================================
   // Table 2c: Users — filterDisplay="menu" + multiselect (per column)
   // ==========================================
-  menuFilterUserColumns: ColumnDef[] = [
+  userMenuFilterColumns: ColumnDef[] = [
     { field: 'name', header: 'Full Name', width: '25%', sortable: true },
     { field: 'email', header: 'Email', width: '25%', sortable: true },
     { field: 'role', header: 'Role', width: '20%', sortable: true, filterMode: 'multiselect' },
@@ -157,6 +157,45 @@ export class App {
   ];
   selectedClickRow: any = null;
   selectedClickRowsMulti: any[] = [];
+
+  // ==========================================
+  // Table 2e: Advanced Visual Table (Banded Columns, Conditional Styling, Progress Bars, Badges)
+  // ==========================================
+  advancedHeaderGroups: any[][] = [
+    [
+      { header: 'General Info', colspan: 2, cssClass: 'bg-primary-100' },
+      { header: 'Performance Metrics', colspan: 3, cssClass: 'bg-green-100' }
+    ]
+  ];
+
+  advancedColumns: ColumnDef[] = [
+    { field: 'name', header: 'Project Name', width: '25%' },
+    { 
+      field: 'status', header: 'Status', width: '15%', editType: 'badge',
+      badgeSeverity: (row) => row.status === 'Completed' ? 'success' : (row.status === 'In Progress' ? 'info' : 'warn')
+    },
+    { 
+      field: 'budget', header: 'Budget Variance', width: '20%', 
+      format: (val) => val > 0 ? `+${val}%` : `${val}%`,
+      cellClass: (row) => row.budget < 0 ? 'text-red-500 font-bold' : 'text-green-500 font-bold'
+    },
+    { 
+      field: 'progress', header: 'Completion', width: '25%', editType: 'progressbar' 
+    },
+    { 
+      field: 'score', header: 'Health Score', width: '15%', 
+      cellStyle: (row) => row.score >= 90 ? { 'background-color': '#e8f5e9', 'color': '#2e7d32' } : null
+    }
+  ];
+
+  advancedData = [
+    { name: 'Website Redesign', status: 'In Progress', budget: -5, progress: 65, score: 85 },
+    { name: 'Mobile App Launch', status: 'Completed', budget: 12, progress: 100, score: 95 },
+    { name: 'Cloud Migration', status: 'Delayed', budget: -25, progress: 30, score: 60 },
+    { name: 'AI Integration', status: 'In Progress', budget: 8, progress: 45, score: 92 },
+  ];
+
+  advancedRowClass = (row: any) => row.status === 'Delayed' ? 'bg-red-50' : '';
 
   // ==========================================
   // Table 3: Tasks — Cell Editing, Row Reorder, Column Reorder, Export
@@ -446,7 +485,7 @@ export class App {
   // ==========================================
   orgColumns: TreeColumnDef[] = [
     { field: 'name', header: 'Name', width: '30%', sortable: true, editable: true },
-    { field: 'role', header: 'Role', width: '25%', editable: true, filterMode: 'dropdown' },
+    { field: 'role', header: 'Role', width: '25%', editable: true, filterMode: 'multiselect' },
     { field: 'email', header: 'Email', width: '25%', editable: true },
     { field: 'status', header: 'Status', width: '20%', filterMode: 'dropdown' },
   ];

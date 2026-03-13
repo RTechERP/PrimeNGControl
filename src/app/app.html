@@ -72,7 +72,7 @@
         <div class="mb-3 text-sm text-600">
           <span class="font-semibold">Role, Department, Status</span> → <code>filterMode="multiselect"</code> — chọn nhiều giá trị cùng lúc
         </div>
-        <app-custom-table [data]="users" [columns]="menuFilterUserColumns" [resizable]="true" [showGridlines]="true"
+        <app-custom-table [data]="users" [columns]="userMenuFilterColumns" [resizable]="true" [showGridlines]="true"
           [showColumnFilter]="true" filterDisplay="menu" [paginator]="true" [rows]="5"
           [rowsPerPageOptions]="[5, 10, 20]" dataKey="id">
         </app-custom-table>
@@ -117,6 +117,21 @@
             <span *ngIf="!selectedClickRowsMulti.length" class="text-400 ml-1">(chưa tick checkbox nào)</span>
           </div>
         </div>
+      </section>
+
+      <hr class="my-4 border-top-1 border-300" />
+
+      <!-- ============================================ -->
+      <!-- TABLE 2e: Advanced Visual Table -->
+      <!-- ============================================ -->
+      <section>
+        <h3 class="text-xl font-bold mb-4">🌟 Advanced Visual Table
+          <small class="text-sm font-normal text-500 ml-2">(Banded Columns, Conditional Styling, Progress Bars, Badges)</small>
+        </h3>
+        <app-custom-table [data]="advancedData" [columns]="advancedColumns" [headerGroups]="advancedHeaderGroups"
+          [rowClass]="advancedRowClass" [resizable]="true" [showGridlines]="true" [showColumnFilter]="true" filterDisplay="menu"
+          [paginator]="true" [rows]="5" [rowsPerPageOptions]="[5, 10]">
+        </app-custom-table>
       </section>
 
       <hr class="my-4 border-top-1 border-300" />

@@ -27,10 +27,16 @@ export interface TreeColumnDef {
     textWrap?: boolean;
     /** Format function for display: (value, rowData?) => string */
     format?: (value: any, rowData?: any) => string;
-    /** CSS class(es) for header + body cells */
+    /** CSS class(es) applied to header, body, and footer cells. */
     cssClass?: string;
-    /** Edit input type: 'text' (default) | 'number' | 'date' | 'lookup' | 'table-lookup' */
-    editType?: 'text' | 'number' | 'date' | 'lookup' | 'table-lookup' | 'textarea';
+    /** Dynamic CSS class(es) applied to body cells based on row data. */
+    cellClass?: (rowData: any) => string | string[] | Set<string> | { [klass: string]: any };
+    /** Dynamic inline style applied to body cells based on row data. */
+    cellStyle?: (rowData: any) => { [klass: string]: any } | null;
+    /** Edit type. Default: 'text' */
+    editType?: 'text' | 'number' | 'date' | 'lookup' | 'table-lookup' | 'textarea' | 'progressbar' | 'badge';
+    /** Dynamic severity for badge type based on row data. */
+    badgeSeverity?: (rowData: any) => 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast' | undefined;
     /** Date format for date picker (PrimeNG format). Default: 'dd/mm/yy' */
     editDateFormat?: string;
     /** Show time picker along with date picker. Default: false */

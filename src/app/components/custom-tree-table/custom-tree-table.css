@@ -59,3 +59,11 @@
 .lookup-row-selected td {
     color: var(--p-primary-700, #1d4ed8);
 }
+
+:host ::ng-deep mark {
+    background-color: #fff176;
+    padding: 0 2px;
+    border-radius: 2px;
+    font-weight: bold;
+    color: #000;
+}

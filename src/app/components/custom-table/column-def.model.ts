@@ -52,9 +52,16 @@ export interface ColumnDef {
     /** CSS class(es) applied to both header and body cells.
      *  Example: 'text-right font-semibold' */
     cssClass?: string;
-    /** Edit input type: 'text' (default) | 'number' | 'date' | 'lookup' | 'table-lookup'.
-     *  'date' shows a date picker. 'lookup' shows a searchable dropdown. 'table-lookup' shows a popup table. */
-    editType?: 'text' | 'number' | 'date' | 'lookup' | 'table-lookup' | 'textarea';
+    /** Dynamic CSS class(es) applied to body cells based on row data. */
+    cellClass?: (rowData: any) => string | string[] | Set<string> | { [klass: string]: any };
+    /** Dynamic inline style applied to body cells based on row data. */
+    cellStyle?: (rowData: any) => { [klass: string]: any } | null;
+    /** Edit input type: 'text' (default) | 'number' | 'date' | 'lookup' | 'table-lookup' | 'textarea' | 'progressbar' | 'badge'.
+     *  'date' shows a date picker. 'lookup' shows a searchable dropdown. 'table-lookup' shows a popup table.
+     *  'progressbar' and 'badge' are read-only visual types. */
+    editType?: 'text' | 'number' | 'date' | 'lookup' | 'table-lookup' | 'textarea' | 'progressbar' | 'badge';
+    /** Dynamic severity for badge type based on row data. */
+    badgeSeverity?: (rowData: any) => 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast' | undefined;
     /** Date format for date picker (PrimeNG format). Default: 'dd/mm/yy'.
      *  Example: 'dd/mm/yy' → 11/03/2026, 'yy-mm-dd' → 2026-03-11 */
     editDateFormat?: string;

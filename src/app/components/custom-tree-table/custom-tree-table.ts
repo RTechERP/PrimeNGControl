@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ViewChild, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ViewChild, OnChanges, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TreeTableModule, TreeTable } from 'primeng/treetable';
@@ -13,6 +13,10 @@ import { ContextMenu, ContextMenuModule } from 'primeng/contextmenu';
 import { Popover, PopoverModule } from 'primeng/popover';
 import { DatePickerModule } from 'primeng/datepicker';
 import { TextareaModule } from 'primeng/textarea';
+import { ProgressBarModule } from 'primeng/progressbar';
+import { TagModule } from 'primeng/tag';
+import { DialogModule } from 'primeng/dialog';
+import { OrderListModule } from 'primeng/orderlist';
 import { MenuItem, TreeNode } from 'primeng/api';
 import { TreeColumnDef } from './tree-column-def.model';
 
@@ -22,7 +26,8 @@ import { TreeColumnDef } from './tree-column-def.model';
     imports: [
         CommonModule, FormsModule, TreeTableModule, TableModule, InputTextModule,
         SelectModule, MultiSelectModule, ButtonModule, IconFieldModule, InputIconModule,
-        ContextMenuModule, PopoverModule, DatePickerModule, TextareaModule
+        ContextMenuModule, PopoverModule, DatePickerModule, TextareaModule,
+        ProgressBarModule, TagModule, DialogModule, OrderListModule
     ],
     templateUrl: './custom-tree-table.html',
     styleUrl: './custom-tree-table.css'
@@ -32,6 +37,9 @@ export class CustomTreeTable implements OnChanges {
     @ViewChild('cm') cm!: ContextMenu;
     @ViewChild('hcm') hcm!: ContextMenu;
     @ViewChild('lookupPanel') lookupPanel!: Popover;
+
+    // --- Highlighting State ---
+    globalFilterValue: string = '';
 
     // --- Table Lookup State ---
     lookupSearchText: string = '';
@@ -59,6 +67,13 @@ export class CustomTreeTable implements OnChanges {
     @Input() title: string = '';
     @Input() showGlobalFilter: boolean = false;
     @Input() globalFilterFields: string[] = [];
+
+    get actualGlobalFilterFields(): string[] {
+        if (this.globalFilterFields && this.globalFilterFields.length > 0) {
+            return this.globalFilterFields;
+        }
+        return this.columns ? this.columns.filter(c => c.field).map(c => c.field) : [];
+    }
 
     // --- Layout ---
     @Input() resizable: boolean = true;
@@ -91,6 +106,23 @@ export class CustomTreeTable implements OnChanges {
     // --- Context Menu ---
     @Input() contextMenuItems: MenuItem[] = [];
     selectedContextNode: any = null;
+
+    // --- Row Reorder ---
+    @Input() reorderableRows: boolean = false;
+    @Output() rowReorder = new EventEmitter<any>();
+
+    // --- Click Row Select ---
+    @Input() clickSelectRow: boolean = false;
+    @Output() rowClick = new EventEmitter<any>();
+    clickedRowKey: any = null;
+
+    // --- Styling ---
+    @Input() rowClass: ((rowData: any) => string | string[] | Set<string> | { [klass: string]: any }) | null = null;
+    @Input() headerGroups: any[][] = [];
+
+    // --- Column Chooser ---
+    showColumnChooser: boolean = false;
+    chooserColumns: TreeColumnDef[] = [];
 
     // --- Column Reorder ---
     @Input() reorderableColumns: boolean = false;
@@ -156,13 +188,35 @@ export class CustomTreeTable implements OnChanges {
     }
 
     onGlobalFilter(event: Event) {
-        const value = (event.target as HTMLInputElement).value;
-        this.tt.filterGlobal(value, 'contains');
+        this.globalFilterValue = (event.target as HTMLInputElement).value;
+        this.tt.filterGlobal(this.globalFilterValue, 'contains');
+    }
+
+    getHighlightedText(text: any): string {
+        if (!this.globalFilterValue || text == null) return String(text || '');
+        const str = String(text);
+        const term = this.globalFilterValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${term})`, 'gi');
+        return str.replace(regex, '<mark>$1</mark>');
     }
 
     onSelectionChange(value: any) {
         this.selection = value;
         this.selectionChange.emit(value);
+    }
+
+    onRowClick(rowNode: any) {
+        if (!this.clickSelectRow) return;
+        const key = rowNode?.node?.key;
+        if (key) {
+            this.clickedRowKey = key;
+            this.rowClick.emit(rowNode.node.data);
+        }
+    }
+
+    isRowClicked(rowNode: any): boolean {
+        if (!this.clickSelectRow || !this.clickedRowKey) return false;
+        return rowNode?.node?.key === this.clickedRowKey;
     }
 
     formatValue(col: TreeColumnDef, rowData: any): string {
@@ -269,6 +323,7 @@ export class CustomTreeTable implements OnChanges {
         // --- Column Visibility ---
         this.headerMenuItems.push(
             { label: 'Ẩn cột này', icon: 'pi pi-eye-slash', command: () => this.hideColumn(field) },
+            { label: 'Cột nâng cao', icon: 'pi pi-list', command: () => this.openColumnChooser() },
             {
                 label: 'Hiện/Ẩn cột', icon: 'pi pi-eye',
                 items: this._allColumns.map(c => ({
@@ -330,6 +385,69 @@ export class CustomTreeTable implements OnChanges {
         if (this.tt.tableService) {
             this.tt.tableService.onSort(null);
         }
+    }
+
+    expandAll() {
+        if (!this.tt?.value) return;
+        this.tt.value.forEach(node => {
+            this.expandRecursive(node, true);
+        });
+    }
+
+    collapseAll() {
+        if (!this.tt?.value) return;
+        this.tt.value.forEach(node => {
+            this.expandRecursive(node, false);
+        });
+    }
+
+    private expandRecursive(node: TreeNode, isExpand: boolean) {
+        node.expanded = isExpand;
+        if (node.children) {
+            node.children.forEach(childNode => {
+                this.expandRecursive(childNode, isExpand);
+            });
+        }
+    }
+
+    // =============================================
+    // Column Chooser (Advanced)
+    // =============================================
+    openColumnChooser() {
+        this.chooserColumns = [...this.columns];
+        const visibleFields = new Set(this.columns.map(c => c.field));
+        this._allColumns.forEach(c => {
+            if (!visibleFields.has(c.field)) {
+                this.chooserColumns.push(c);
+            }
+        });
+        this.showColumnChooser = true;
+    }
+
+    applyColumnChooser() {
+        this.columns = this.chooserColumns.filter(c => !this._hiddenFields.has(c.field));
+        const chosenFields = new Set(this.columns.map(c => c.field));
+        const newAllColumns = [...this.columns];
+        this._allColumns.forEach(c => {
+            if (!chosenFields.has(c.field)) {
+                newAllColumns.push(c);
+            }
+        });
+        this._allColumns = newAllColumns;
+        this.showColumnChooser = false;
+    }
+
+    closeColumnChooser() {
+        this.showColumnChooser = false;
+    }
+
+    isColumnHidden(field: string): boolean {
+        return this._hiddenFields.has(field);
+    }
+
+    toggleChooserColumnVisible(event: any, field: string) {
+        event.stopPropagation();
+        this.toggleColumnVisible(field);
     }
 
     hideColumn(field: string) {

@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ViewChild, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ViewChild, OnChanges, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TableModule, Table } from 'primeng/table';
@@ -12,6 +12,12 @@ import { ContextMenu, ContextMenuModule } from 'primeng/contextmenu';
 import { Popover, PopoverModule } from 'primeng/popover';
 import { DatePickerModule } from 'primeng/datepicker';
 import { TextareaModule } from 'primeng/textarea';
+import { ProgressBarModule } from 'primeng/progressbar';
+import { TagModule } from 'primeng/tag';
+import { DialogModule } from 'primeng/dialog';
+import { OrderListModule } from 'primeng/orderlist';
+import { CheckboxModule } from 'primeng/checkbox';
+import { TabsModule } from 'primeng/tabs';
 import { MenuItem } from 'primeng/api';
 import { ColumnDef, EditLookupConfig } from './column-def.model';
 
@@ -21,7 +27,8 @@ import { ColumnDef, EditLookupConfig } from './column-def.model';
     imports: [
         CommonModule, FormsModule, TableModule, InputTextModule,
         SelectModule, MultiSelectModule, ButtonModule, IconFieldModule, InputIconModule,
-        ContextMenuModule, PopoverModule, DatePickerModule, TextareaModule
+        ContextMenuModule, PopoverModule, DatePickerModule, TextareaModule, CheckboxModule,
+        TabsModule, ProgressBarModule, TagModule, DialogModule, OrderListModule
     ],
     templateUrl: './custom-table.html',
     styleUrl: './custom-table.css'
@@ -31,6 +38,15 @@ export class CustomTable implements OnChanges {
     @ViewChild('cm') cm!: ContextMenu;
     @ViewChild('hcm') hcm!: ContextMenu;
     @ViewChild('lookupPanel') lookupPanel!: Popover;
+    
+    // --- Highlighting State ---
+    globalFilterValue: string = '';
+    
+    // --- Excel Filter State ---
+    excelFilterSearchText: { [field: string]: string } = {};
+    activeFilterTab: { [field: string]: string } = {};
+    customFilterMatchMode: { [field: string]: string } = {};
+    customFilterValue: { [field: string]: any } = {};
 
     // --- Table Lookup State ---
     lookupSearchText: string = '';
@@ -64,6 +80,13 @@ export class CustomTable implements OnChanges {
     @Input() title: string = '';
     @Input() showGlobalFilter: boolean = false;
     @Input() globalFilterFields: string[] = [];
+
+    get actualGlobalFilterFields(): string[] {
+        if (this.globalFilterFields && this.globalFilterFields.length > 0) {
+            return this.globalFilterFields;
+        }
+        return this.columns ? this.columns.filter(c => c.field).map(c => c.field) : [];
+    }
 
     // --- Layout ---
     @Input() resizable: boolean = true;
@@ -127,6 +150,13 @@ export class CustomTable implements OnChanges {
     /** Bật highlight dòng khi click bất kỳ cell nào. Luôn là single: click dòng khác → bỏ highlight dòng cũ.
      *  Hoạt động độc lập với selectionMode="multiple" (checkbox multi-select). */
     @Input() clickSelectRow: boolean = false;
+    // --- Styling ---
+    @Input() rowClass: ((rowData: any) => string | string[] | Set<string> | { [klass: string]: any }) | null = null;
+    @Input() headerGroups: any[][] = [];
+
+    // --- Column Chooser ---
+    showColumnChooser: boolean = false;
+    chooserColumns: ColumnDef[] = [];
     @Output() rowClick = new EventEmitter<any>();
     clickedRowKey: any = null;
 
@@ -235,8 +265,116 @@ export class CustomTable implements OnChanges {
 
 
     onGlobalFilter(event: Event) {
-        const value = (event.target as HTMLInputElement).value;
-        this.dt.filterGlobal(value, 'contains');
+        this.globalFilterValue = (event.target as HTMLInputElement).value;
+        this.dt.filterGlobal(this.globalFilterValue, 'contains');
+    }
+
+    getHighlightedText(text: any): string {
+        if (!this.globalFilterValue || text == null) return String(text || '');
+        const str = String(text);
+        const term = this.globalFilterValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${term})`, 'gi');
+        return str.replace(regex, '<mark>$1</mark>');
+    }
+
+    isFilterSelected(value: any[], val: any): boolean {
+        return !!(value && value.includes(val));
+    }
+
+    toggleFilter(value: any[], val: any, filterCallback: (v: any) => void) {
+        const current = value || [];
+        if (current.includes(val)) {
+            filterCallback(current.filter(v => v !== val));
+        } else {
+            filterCallback([...current, val]);
+        }
+    }
+
+    selectAllFilter(col: ColumnDef, filterCallback: (v: any) => void) {
+        const options = this.getFilterOptions(col);
+        filterCallback(options.map(o => o.value));
+    }
+
+    clearFilter(filterCallback: (v: any) => void) {
+        filterCallback(null);
+    }
+
+    isAllFilterSelected(value: any[], col: ColumnDef): boolean {
+        const options = this.getFilterOptions(col);
+        if (!options.length) return false;
+        return !!(value && value.length === options.length);
+    }
+
+    toggleAllFilter(value: any[], col: ColumnDef, filterCallback: (v: any) => void) {
+        if (this.isAllFilterSelected(value, col)) {
+            filterCallback(null);
+        } else {
+            const options = this.getFilterOptions(col);
+            filterCallback(options.map(o => o.value));
+        }
+    }
+
+    getDefaultMatchMode(filterType: string = 'text'): string {
+        if (filterType === 'numeric') return 'equals';
+        if (filterType === 'date') return 'dateIs';
+        return 'startsWith';
+    }
+
+    getMatchMode(field: string, filterType: string = 'text'): string {
+        if (this.activeFilterTab[field] === '1') {
+            return this.customFilterMatchMode[field] || this.getDefaultMatchMode(filterType);
+        }
+        return 'in';
+    }
+
+    getCustomFilterMatchModes(filterType: string = 'text'): any[] {
+        if (filterType === 'numeric') {
+            return [
+                { label: 'Equals', value: 'equals' },
+                { label: 'Not Equals', value: 'notEquals' },
+                { label: 'Less Than', value: 'lt' },
+                { label: 'Less Than or Equal To', value: 'lte' },
+                { label: 'Greater Than', value: 'gt' },
+                { label: 'Greater Than or Equal To', value: 'gte' }
+            ];
+        } else if (filterType === 'date') {
+            return [
+                { label: 'Is', value: 'dateIs' },
+                { label: 'Is Not', value: 'dateIsNot' },
+                { label: 'Before', value: 'dateBefore' },
+                { label: 'After', value: 'dateAfter' }
+            ];
+        }
+        return [
+            { label: 'Begins With', value: 'startsWith' },
+            { label: 'Contains', value: 'contains' },
+            { label: 'Ends With', value: 'endsWith' },
+            { label: 'Equals', value: 'equals' },
+            { label: 'Not Equals', value: 'notEquals' }
+        ];
+    }
+
+    applyCustomFilter(field: string, checkboxValue: any, filterCallback: Function) {
+        if (this.activeFilterTab[field] === '1') {
+            filterCallback(this.customFilterValue[field]);
+        } else {
+            filterCallback(checkboxValue);
+        }
+    }
+
+    clearCustomFilter(field: string, filterCallback: Function) {
+        this.customFilterValue[field] = null;
+        filterCallback(null);
+    }
+
+
+
+    getFilteredOptions(col: ColumnDef): { label: string; value: any }[] {
+
+        const options = this.getFilterOptions(col);
+        const term = (this.excelFilterSearchText[col.field] || '').toLowerCase();
+        if (!term) return options;
+        return options.filter(o => o.label.toLowerCase().includes(term));
     }
 
     onSelectionChange(selection: any) {
@@ -467,6 +605,7 @@ export class CustomTable implements OnChanges {
         // --- Column Visibility ---
         this.headerMenuItems.push(
             { label: 'Ẩn cột này', icon: 'pi pi-eye-slash', command: () => this.hideColumn(field) },
+            { label: 'Cột nâng cao', icon: 'pi pi-list', command: () => this.openColumnChooser() },
             {
                 label: 'Hiện/Ẩn cột', icon: 'pi pi-eye',
                 items: this._allColumns.map(c => ({
@@ -590,5 +729,49 @@ export class CustomTable implements OnChanges {
 
     exportCSV() {
         this.dt.exportCSV();
+    }
+
+    // =============================================
+    // Column Chooser (Advanced)
+    // =============================================
+    openColumnChooser() {
+        // Deep copy the internal visible columns
+        this.chooserColumns = [...this.columns];
+        // Append hidden columns at the end
+        const visibleFields = new Set(this.columns.map(c => c.field));
+        this._allColumns.forEach(c => {
+            if (!visibleFields.has(c.field)) {
+                this.chooserColumns.push(c);
+            }
+        });
+        this.showColumnChooser = true;
+    }
+
+    applyColumnChooser() {
+        // Filter out hidden ones from the user's ordered list
+        this.columns = this.chooserColumns.filter(c => !this._hiddenFields.has(c.field));
+        // Also re-sync the internal full list order based on the new visible layout
+        const chosenFields = new Set(this.columns.map(c => c.field));
+        const newAllColumns = [...this.columns];
+        this._allColumns.forEach(c => {
+            if (!chosenFields.has(c.field)) {
+                newAllColumns.push(c);
+            }
+        });
+        this._allColumns = newAllColumns;
+        this.showColumnChooser = false;
+    }
+
+    closeColumnChooser() {
+        this.showColumnChooser = false;
+    }
+
+    isColumnHidden(field: string): boolean {
+        return this._hiddenFields.has(field);
+    }
+
+    toggleChooserColumnVisible(event: any, field: string) {
+        event.stopPropagation();
+        this.toggleColumnVisible(field);
     }
 }
