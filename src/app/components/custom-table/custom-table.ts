@@ -589,6 +589,22 @@ export class CustomTable implements OnChanges {
         return cur === row[cfg.valueField];
     }
 
+    isAllLookupSelected(): boolean {
+        return this.lookupFilteredData.length > 0 && this.lookupSelectedRows.length === this.lookupFilteredData.length;
+    }
+
+    toggleAllLookupRows() {
+        if (this.isAllLookupSelected()) {
+            this.lookupSelectedRows = [];
+        } else {
+            this.lookupSelectedRows = [...this.lookupFilteredData];
+        }
+    }
+
+    clearLookupSelection() {
+        this.lookupSelectedRows = [];
+    }
+
     // =============================================
     // Header Context Menu (DevExpress-style)
     // =============================================

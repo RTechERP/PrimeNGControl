@@ -1,6 +1,6 @@
 # 📊 Custom Table Component — Hướng dẫn sử dụng
 
-Component `app-custom-table` là một wrapper bọc ngoài PrimeNG `p-table`, cung cấp **24 tính năng** có thể cấu hình qua `@Input()`.
+Component `app-custom-table` là một wrapper bọc ngoài PrimeNG `p-table`, cung cấp **32 tính năng** có thể cấu hình qua `@Input()`.
 
 ---
 
@@ -111,6 +111,7 @@ interface EditLookupConfig {
 | `clickSelectRow` | `boolean` | `false` | Click vào cell để highlight dòng (single active row) |
 | `filterDisplay` | `string` | `'row'` | Kiểu hiển thị filter: `'row'` hoặc `'menu'` |
 | `rowGroupShowFooter` | `boolean` | `false` | Hiện footer trong mỗi nhóm (khi dùng row grouping) |
+| `headerGroups` | `any[][]` | `[]` | Nhóm tiêu đề nhiều cấp (Banded Columns) |
 
 ---
 
@@ -783,8 +784,54 @@ checkedRows: any[] = [];     // Các dòng đang được tick checkbox
 ```
 
 > **Use case:** Highlight dòng đang làm việc (sửa, xem chi tiết) trong khi vẫn cho phép chọn nhiều dòng để xóa hàng loạt.
+---
+
+### 29. 🧱 Cột nhóm (Banded Columns)
+
+Cho phép gộp nhóm các tiêu đề cột thành nhiều cấp.
+
+```html
+<app-custom-table
+  [columns]="columns"
+  [headerGroups]="headerGroups">
+</app-custom-table>
+```
+
+```typescript
+headerGroups: any[][] = [
+  [
+    { header: 'Nhóm A', colspan: 2, cssClass: 'bg-blue-100' },
+    { header: 'Nhóm B', colspan: 2, cssClass: 'bg-green-100' }
+  ]
+];
+```
+
+> **Lưu ý:** Các cột điều khiển (checkbox, expand) sẽ tự động được giãn dòng (`rowspan`) để khớp với số cấp của headerGroups.
 
 ---
+
+### 30. 🎯 Cell Focus & Highlighting
+
+Click vào bất kỳ ô nào để highlight ô đó.
+
+- **Tự động focus**: Khi click vào cell, bảng sẽ nhận focus từ trình duyệt để sẵn sàng nhận lệnh bàn phím.
+- **Styling**: Ô được chọn sẽ có viền dày màu xanh (Primary color) đặc trưng.
+
+---
+
+### 31. 📋 Cell Copy (Ctrl + C)
+
+Khi một ô đang được focus, nhấn **Ctrl + C** (hoặc **Cmd + C**) để copy nội dung của ô đó vào clipboard.
+- **Format**: Dữ liệu copy sẽ giữ nguyên định dạng hiển thị (respect `format` function).
+- **Multi-table**: Hỗ trợ nhiều bảng trên cùng một trang, chỉ bảng đang active mới thực hiện lệnh copy.
+
+---
+
+### 32. 🛠️ Cột nâng cao (Column Chooser)
+
+Chuột phải vào header → chọn **"Cột nâng cao"** để mở dialog quản lý cột.
+- **Kéo thả**: Thay đổi thứ tự cột trực quan.
+- **Ẩn/Hiện**: Bật tắt nhanh các cột qua checkbox.
 
 ## 🎯 Ví dụ tổng hợp
 
@@ -845,7 +892,7 @@ src/app/components/custom-table/
 
 # 🌳 Custom TreeTable Component — Hướng dẫn sử dụng
 
-Component `app-custom-tree-table` là wrapper bọc ngoài PrimeNG `p-treeTable`, dùng cho **dữ liệu phân cấp (hierarchical/tree)** với **17 tính năng** configurable.
+Component `app-custom-tree-table` là wrapper bọc ngoài PrimeNG `p-treeTable`, dùng cho **dữ liệu phân cấp (hierarchical/tree)** với **21 tính năng** configurable.
 
 ---
 
@@ -945,6 +992,7 @@ const data: TreeNode[] = [
 | `editMode` | `string\|undefined` | `undefined` | `'cell'` |
 | `exportable` | `boolean` | `false` | Nút export CSV |
 | `exportFilename` | `string` | `'download'` | Tên file CSV |
+| `headerGroups` | `any[][]` | `[]` | Nhóm tiêu đề nhiều cấp (Banded Columns) |
 
 ---
 
@@ -1145,6 +1193,24 @@ menuItems: MenuItem[] = [
 | Loading | `[loading]="isLoading"` |
 | Text wrap | `[textWrap]="true"` hoặc per-column `textWrap: true` |
 | Clear Sort | Click phải vào header cột sortable |
+
+---
+
+### 18. 🧱 Cột nhóm (Banded Columns)
+
+Tương tự `CustomTable`, hỗ trợ tiêu đề nhiều cấp cho TreeTable.
+
+---
+
+### 19. 🎯 Cell Focus & Highlighting
+
+Click vào ô để highlight với viền xanh.
+
+---
+
+### 20. 📋 Cell Copy (Ctrl + C)
+
+Hỗ trợ copy nội dung ô đang focus bằng phím tắt.
 
 ---
 

@@ -163,8 +163,12 @@ export class App {
   // ==========================================
   advancedHeaderGroups: any[][] = [
     [
-      { header: 'General Info', colspan: 2, cssClass: 'bg-primary-100' },
-      { header: 'Performance Metrics', colspan: 3, cssClass: 'bg-green-100' }
+      { header: 'Project Overview', colspan: 2, cssClass: 'bg-primary-100', rowspan: 2 },
+      { header: 'Detailed Performance', colspan: 3, cssClass: 'bg-green-100' }
+    ],
+    [
+      { header: 'Financials', colspan: 1, cssClass: 'bg-green-50' },
+      { header: 'Timeline', colspan: 2, cssClass: 'bg-green-50' }
     ]
   ];
 

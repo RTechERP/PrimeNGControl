@@ -36,11 +36,18 @@
     <ng-template pTemplate="header">
         <!-- Multi-Level Header Groups (Banded Columns) -->
         <ng-container *ngIf="headerGroups && headerGroups.length > 0">
-            <tr *ngFor="let groupRow of headerGroups">
-                <!-- Empty cells for control columns if needed -->
-                <ng-container *ngIf="reorderableRows"><th [attr.rowspan]="1" style="width: 3rem"></th></ng-container>
-                <ng-container *ngIf="expandable"><th [attr.rowspan]="1" style="width: 4rem"></th></ng-container>
-                <ng-container *ngIf="selectionMode === 'multiple'"><th [attr.rowspan]="1" style="width: 3rem"></th></ng-container>
+            <tr *ngFor="let groupRow of headerGroups; let rowIndex = index">
+                <!-- Control columns only on the first row with rowspan -->
+                <ng-container *ngIf="rowIndex === 0">
+                    <th *ngIf="reorderableRows" [attr.rowspan]="headerGroups.length + 1" style="width: 3rem"
+                        pFrozenColumn [frozen]="true" [ngClass]="['p-datatable-frozen-column', 'frozen-left']"></th>
+                    <th *ngIf="expandable" [attr.rowspan]="headerGroups.length + 1" style="width: 4rem"
+                        pFrozenColumn [frozen]="true" [ngClass]="['p-datatable-frozen-column', 'frozen-left']"></th>
+                    <th *ngIf="selectionMode === 'multiple'" [attr.rowspan]="headerGroups.length + 1" style="width: 3rem" 
+                        pFrozenColumn [frozen]="true" [ngClass]="['p-datatable-frozen-column', 'frozen-left']">
+                        <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+                    </th>
+                </ng-container>
                 
                 <th *ngFor="let h of groupRow" 
                     [attr.colspan]="h.colspan || 1" 
@@ -54,12 +61,12 @@
         </ng-container>
 
         <tr>
-            <!-- Drag handle header for row reorder -->
-            <th *ngIf="reorderableRows" style="width: 3rem"></th>
-            <!-- Expand toggle header -->
-            <th *ngIf="expandable" style="width: 4rem"></th>
-            <!-- Checkbox header for multiple selection -->
-            <th *ngIf="selectionMode === 'multiple'" style="width: 3rem" pFrozenColumn [frozen]="true" class="frozen-left">
+            <!-- Drag handle header for row reorder - only if no headerGroups (otherwise handled by rowspan) -->
+            <th *ngIf="reorderableRows && (!headerGroups || headerGroups.length === 0)" style="width: 3rem"></th>
+            <!-- Expand toggle header - only if no headerGroups -->
+            <th *ngIf="expandable && (!headerGroups || headerGroups.length === 0)" style="width: 4rem"></th>
+            <!-- Checkbox header for multiple selection - only if no headerGroups -->
+            <th *ngIf="selectionMode === 'multiple' && (!headerGroups || headerGroups.length === 0)" style="width: 3rem" pFrozenColumn [frozen]="true" class="frozen-left">
                 <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
             </th>
             <th *ngFor="let col of columns" pResizableColumn [pSortableColumn]="col.field"
@@ -240,11 +247,11 @@
             [class.row-click-selected]="isRowClicked(rowData)"
             (click)="onRowClick(rowData)">
             <!-- Drag handle for row reorder -->
-            <td *ngIf="reorderableRows">
+            <td *ngIf="reorderableRows" pFrozenColumn [frozen]="true" class="frozen-left" style="width: 3rem">
                 <span class="pi pi-bars" pReorderableRowHandle style="cursor: move;"></span>
             </td>
             <!-- Expand toggle -->
-            <td *ngIf="expandable">
+            <td *ngIf="expandable" pFrozenColumn [frozen]="true" class="frozen-left" style="width: 4rem">
                 <p-button type="button" [pRowToggler]="rowData" [text]="true" [rounded]="true"
                     [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'">
                 </p-button>
@@ -416,8 +423,8 @@
                         <!-- Checkbox column header (multi-select) -->
                         <th *ngIf="activeLookupCol?.editLookupConfig?.multiSelect" style="width: 36px; text-align: center;">
                             <p-checkbox [binary]="true" 
-                                [ngModel]="lookupSelectedRows.length === lookupFilteredData.length && lookupFilteredData.length > 0"
-                                (ngModelChange)="lookupSelectedRows.length === lookupFilteredData.length ? lookupSelectedRows = [] : lookupSelectedRows = [...lookupFilteredData]">
+                                [ngModel]="isAllLookupSelected()"
+                                (ngModelChange)="toggleAllLookupRows()">
                             </p-checkbox>
                         </th>
                         <th *ngFor="let lc of activeLookupCol?.editLookupConfig?.columns"
@@ -458,7 +465,7 @@
             <span class="text-sm text-500">Đã chọn: {{ lookupSelectedRows.length }}</span>
             <div class="flex gap-2">
                 <button pButton label="Bỏ chọn" icon="pi pi-times" class="p-button-sm p-button-text p-button-secondary"
-                    (click)="lookupSelectedRows = []"></button>
+                    (click)="clearLookupSelection()"></button>
                 <button pButton label="Xác nhận" icon="pi pi-check" class="p-button-sm p-button-success"
                     (click)="confirmLookupSelection()"></button>
             </div>
