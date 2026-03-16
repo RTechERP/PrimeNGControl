@@ -1,7 +1,7 @@
 <p-contextMenu #cm [model]="contextMenuItems"></p-contextMenu>
 <p-contextMenu #hcm [model]="headerMenuItems"></p-contextMenu>
 
-<p-table #dt [value]="data" [columns]="columns" [tableStyle]="{ 'min-width': (columns.length * 8) + 'rem' }" [resizableColumns]="resizable"
+<p-table #dt [value]="data" [columns]="columns" [tableStyle]="{ 'min-width': minWidth || (columns.length * 10) + 'rem' }" [resizableColumns]="resizable"
     [columnResizeMode]="resizeMode" [showGridlines]="showGridlines" styleClass="p-datatable-gridlines p-datatable-sm"
     [globalFilterFields]="actualGlobalFilterFields" [scrollable]="scrollable" [scrollHeight]="scrollable ? scrollHeight : ''"
     [paginator]="paginator" [rows]="rows" [rowsPerPageOptions]="rowsPerPageOptions" [rowGroupMode]="rowGroupMode"

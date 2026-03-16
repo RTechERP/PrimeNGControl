@@ -107,6 +107,8 @@ export class CustomTable implements OnChanges {
     // --- Scrollable ---
     @Input() scrollable: boolean = false;
     @Input() scrollHeight: string = '400px';
+    @Input() minWidth: string = ''; // e.g. '1200px' or 'max-content'
+
 
     // --- Virtual Scrolling ---
     @Input() virtualScroll: boolean = false;
