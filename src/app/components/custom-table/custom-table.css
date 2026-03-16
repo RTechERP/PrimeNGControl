@@ -11,7 +11,11 @@
 :host ::ng-deep .p-datatable-thead>tr>th {
     text-align: center;
     justify-content: center;
-    width: 100% !important;
+}
+
+/* Force horizontal scroll when scrollable is powered on */
+:host ::ng-deep .p-datatable-wrapper {
+    overflow-x: auto !important;
 }
 
 /* =====================================================
