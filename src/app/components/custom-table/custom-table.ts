@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ViewChild, OnChanges, SimpleChanges, inject, HostListener, HostBinding, ElementRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ViewChild, OnChanges, OnInit, SimpleChanges, inject, HostListener, HostBinding, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TableModule, Table } from 'primeng/table';
@@ -18,8 +18,11 @@ import { DialogModule } from 'primeng/dialog';
 import { OrderListModule } from 'primeng/orderlist';
 import { CheckboxModule } from 'primeng/checkbox';
 import { TabsModule } from 'primeng/tabs';
-import { MenuItem } from 'primeng/api';
+import { TooltipModule } from 'primeng/tooltip';
+import { MenuItem, FilterService } from 'primeng/api';
 import { ColumnDef, EditLookupConfig } from './column-def.model';
+import { TableLayoutData, TableColumnLayout } from './table-layout.model';
+import { TableLayoutService } from './table-layout.service';
 
 @Component({
     selector: 'app-custom-table',
@@ -28,28 +31,50 @@ import { ColumnDef, EditLookupConfig } from './column-def.model';
         CommonModule, FormsModule, TableModule, InputTextModule,
         SelectModule, MultiSelectModule, ButtonModule, IconFieldModule, InputIconModule,
         ContextMenuModule, PopoverModule, DatePickerModule, TextareaModule, CheckboxModule,
-        TabsModule, ProgressBarModule, TagModule, DialogModule, OrderListModule
+        TabsModule, ProgressBarModule, TagModule, DialogModule, OrderListModule, TooltipModule
     ],
     templateUrl: './custom-table.html',
     styleUrl: './custom-table.css'
 })
-export class CustomTable implements OnChanges {
+export class CustomTable implements OnChanges, OnInit {
     @ViewChild('dt') dt!: Table;
     @ViewChild('cm') cm!: ContextMenu;
     @ViewChild('hcm') hcm!: ContextMenu;
     @ViewChild('lookupPanel') lookupPanel!: Popover;
 
     private el = inject(ElementRef);
+    private filterService = inject(FilterService);
+    private layoutService = inject(TableLayoutService);
     @HostBinding('attr.tabindex') tabindex = '0';
-    
+
+    constructor() {
+        this.filterService.register('dateRange', (value: any, filter: Date[]) => {
+            if (!filter || !filter[0]) return true;
+            if (value == null) return false;
+            const date = new Date(value);
+            date.setHours(0, 0, 0, 0);
+            const start = new Date(filter[0]);
+            start.setHours(0, 0, 0, 0);
+            if (!filter[1]) return date.getTime() >= start.getTime();
+            const end = new Date(filter[1]);
+            end.setHours(23, 59, 59, 999);
+            return date.getTime() >= start.getTime() && date.getTime() <= end.getTime();
+        });
+    }
+
     // --- Highlighting State ---
     globalFilterValue: string = '';
-    
+
     // --- Excel Filter State ---
     excelFilterSearchText: { [field: string]: string } = {};
     activeFilterTab: { [field: string]: string } = {};
     customFilterMatchMode: { [field: string]: string } = {};
     customFilterValue: { [field: string]: any } = {};
+
+    // --- DateTime Filter State ---
+    dateFilterMode: { [field: string]: 'single' | 'range' } = {};
+    dateRangeFilter: { [field: string]: Date[] } = {};
+    dateSingleFilter: { [field: string]: Date | null } = {};
 
     // --- Table Lookup State ---
     lookupSearchText: string = '';
@@ -62,6 +87,9 @@ export class CustomTable implements OnChanges {
     /** Cache of last-loaded data per field (for formatValue when using loadData) */
     private lookupDataCache: { [field: string]: any[] } = {};
 
+    // --- Cell Value Cache (performance: avoid re-calling format() on every CD cycle) ---
+    private cellValueCache = new Map<string, string>();
+
     // --- Cell Focus State ---
     focusedCell: { rowData: any, colField: string } | null = null;
     private lookupDebounceTimer: any = null;
@@ -71,9 +99,10 @@ export class CustomTable implements OnChanges {
     private _data: any[] = [];
 
     @Input() set data(val: any[]) {
-        this._originalData = val ? [...val] : [];
-        this._data = val ? [...val] : [];
-        this.buildFilterOptionsCache();
+        this._originalData = val ?? [];
+        this._data = val ?? [];
+        this.cellValueCache.clear();
+        this.scheduleBuildFilterOptionsCache();
     }
     get data(): any[] {
         return this._data;
@@ -82,8 +111,20 @@ export class CustomTable implements OnChanges {
     @Input() dataKey: string = '';
     @Input() loading: boolean = false;
 
+    // --- Layout Persistence ---
+    /** Unique key identifying this table for layout storage (e.g. 'product-table').
+     *  When set, layout save/load UI becomes available and auto-load fires on init. */
+    @Input() layoutKey: string = '';
+    /** Emitted when user saves a layout. Payload: the full TableLayoutData object. */
+    @Output() layoutSave = new EventEmitter<TableLayoutData>();
+    /** Emitted when a layout is applied (loaded). Payload: the applied TableLayoutData. */
+    @Output() layoutLoad = new EventEmitter<TableLayoutData>();
+    /** Emitted when a layout is deleted. Payload: the deleted layout's _id. */
+    @Output() layoutDelete = new EventEmitter<string>();
+
     // --- Caption ---
     @Input() title: string = '';
+    @Input() minWidth: string = '50rem';
     @Input() showGlobalFilter: boolean = false;
     @Input() globalFilterFields: string[] = [];
 
@@ -95,9 +136,19 @@ export class CustomTable implements OnChanges {
     }
 
     // --- Layout ---
+    @Input() height: string = '';
+    @HostBinding('style.height') get hostHeight() { return this.height || null; }
+    @HostBinding('style.display') get hostDisplay() { return this.height ? 'flex' : null; }
+    @HostBinding('style.flexDirection') get hostFlexDir() { return this.height ? 'column' : null; }
+    @HostBinding('style.minHeight') get hostMinHeight() { return this.height ? '0' : null; }
+    @HostBinding('style.overflow') get hostOverflow() { return this.height ? 'hidden' : null; }
     @Input() resizable: boolean = true;
-    @Input() resizeMode: string = 'fit';
+    @Input() resizeMode: string = 'expand';
     @Input() showGridlines: boolean = true;
+    @Input() fontSize: string = '10px';
+    @HostBinding('style.--table-font-size') get tableFontSizeVar() { return this.fontSize; }
+    @HostBinding('style.--virtual-row-height') get virtualRowHeightVar() { return this.virtualScroll ? this.virtualScrollItemSize + 'px' : null; }
+    @HostBinding('class.vs-active') get vsActiveClass() { return this.virtualScroll; }
     @Input() showColumnFilter: boolean = true;
     /** 'row' = filter inputs below header (default), 'menu' = filter icon in header opens popup */
     @Input() filterDisplay: 'row' | 'menu' = 'row';
@@ -107,8 +158,6 @@ export class CustomTable implements OnChanges {
     // --- Scrollable ---
     @Input() scrollable: boolean = false;
     @Input() scrollHeight: string = '400px';
-    @Input() minWidth: string = ''; // e.g. '1200px' or 'max-content'
-
 
     // --- Virtual Scrolling ---
     @Input() virtualScroll: boolean = false;
@@ -137,6 +186,7 @@ export class CustomTable implements OnChanges {
     // --- Context Menu ---
     @Input() contextMenuItems: MenuItem[] = [];
     @Input() selectedContextRow: any = null;
+    @Output() selectedContextRowChange = new EventEmitter<any>();
     @Output() contextMenuSelectionChange = new EventEmitter<any>();
 
     // --- Column Reorder ---
@@ -148,6 +198,25 @@ export class CustomTable implements OnChanges {
 
     // --- Table Lookup ---
     @Output() lookupSelect = new EventEmitter<{ selectedRow: any; field: string; rowData: any }>();
+
+    // --- Cell Action (fired for clickable columns, e.g. delete icon) ---
+    @Output() cellAction = new EventEmitter<{ field: string; rowData: any }>();
+
+    // --- Header Cell Action (fired for headerClickable columns, e.g. upload button in header) ---
+    @Output() headerCellAction = new EventEmitter<{ field: string }>();
+
+    @Output() rowDblClick = new EventEmitter<any>();
+
+    onRowDblClick(rowData: any) {
+        this.rowDblClick.emit(rowData);
+    }
+
+    onHeaderCellClick(event: Event, col: ColumnDef) {
+        event.stopPropagation();
+        if (col.headerClickable) {
+            this.headerCellAction.emit({ field: col.field });
+        }
+    }
 
     // --- Row Expansion ---
     @Input() expandable: boolean = false;
@@ -166,12 +235,27 @@ export class CustomTable implements OnChanges {
     showColumnChooser: boolean = false;
     chooserColumns: ColumnDef[] = [];
     @Output() rowClick = new EventEmitter<any>();
+    @Output() rowDoubleClick = new EventEmitter<any>();
     clickedRowKey: any = null;
 
     onRowClick(rowData: any) {
-        if (!this.clickSelectRow) return;
-        this.clickedRowKey = this.dataKey ? rowData[this.dataKey] : rowData;
+        if (this.clickSelectRow) {
+            const newKey = this.dataKey ? rowData[this.dataKey] : rowData;
+            if (this.clickedRowKey !== newKey) {
+                const focusedKey = this.focusedCell
+                    ? (this.dataKey ? this.focusedCell.rowData[this.dataKey] : this.focusedCell.rowData)
+                    : null;
+                if (focusedKey !== newKey) {
+                    this.focusedCell = null;
+                }
+            }
+            this.clickedRowKey = newKey;
+        }
         this.rowClick.emit(rowData);
+    }
+
+    onRowDoubleClick(rowData: any) {
+        this.rowDoubleClick.emit(rowData);
     }
 
     isRowClicked(rowData: any): boolean {
@@ -223,9 +307,23 @@ export class CustomTable implements OnChanges {
     @Input() exportable: boolean = false;
     @Input() exportFilename: string = 'download';
 
-    // --- State Persistence ---
+    // --- State Persistence (PrimeNG built-in) ---
     @Input() stateKey: string | undefined = undefined;
     @Input() stateStorage: 'session' | 'local' = 'local';
+
+    // --- Layout Dialog State ---
+    showLayoutDialog: boolean = false;
+    layoutDialogTab: string = '0';
+    layoutList: TableLayoutData[] = [];
+    layoutNameInput: string = '';
+    layoutSaving: boolean = false;
+    layoutLoading: boolean = false;
+    private _initialColumns: ColumnDef[] = [];
+    private _initialShowColumnFilter: boolean = true;
+    private _initialShowGlobalFilter: boolean = false;
+    private _initialFontSize: string = '10px';
+    private _initialTextWrap: boolean = false;
+    private _layoutInitDone: boolean = false;
 
     // --- Header Context Menu ---
     headerMenuItems: MenuItem[] = [];
@@ -235,13 +333,27 @@ export class CustomTable implements OnChanges {
 
     // --- Filter Options Cache ---
     filterOptionsCache: { [field: string]: { label: string; value: any }[] } = {};
+    private _cacheScheduleId: any = null;
 
     ngOnChanges(changes: SimpleChanges): void {
-        if (changes['data'] || changes['columns']) {
-            this.buildFilterOptionsCache();
-        }
         if (changes['columns'] && this.columns) {
+            // Backup initial columns on first set (before any layout is applied)
+            if (!this._layoutInitDone) {
+                this._initialColumns = this.columns.map(c => ({ ...c }));
+                this._initialShowColumnFilter = this.showColumnFilter;
+                this._initialShowGlobalFilter = this.showGlobalFilter;
+                this._initialFontSize = this.fontSize;
+                this._initialTextWrap = this.textWrap;
+            }
             this._allColumns = [...this.columns];
+            this.scheduleBuildFilterOptionsCache();
+        }
+    }
+
+    ngOnInit(): void {
+        // Auto-load default layout when layoutKey is provided
+        if (this.layoutKey) {
+            this.autoLoadDefaultLayout();
         }
     }
 
@@ -250,6 +362,14 @@ export class CustomTable implements OnChanges {
     }
 
     // --- Filter Options (auto-populated from data, or lazy-loaded) ---
+    scheduleBuildFilterOptionsCache() {
+        if (this._cacheScheduleId != null) return;
+        this._cacheScheduleId = setTimeout(() => {
+            this._cacheScheduleId = null;
+            this.buildFilterOptionsCache();
+        }, 0);
+    }
+
     buildFilterOptionsCache() {
         this.filterOptionsCache = {};
         if (!this.columns?.length) return;
@@ -271,9 +391,14 @@ export class CustomTable implements OnChanges {
         return this.filterOptionsCache[col.field] || [];
     }
 
+    // --- TrackBy ---
+    trackByField(_: number, col: ColumnDef): string { return col.field; }
+    trackByIndex(i: number): number { return i; }
+
 
     onGlobalFilter(event: Event) {
         this.globalFilterValue = (event.target as HTMLInputElement).value;
+        this.cellValueCache.clear();
         this.dt.filterGlobal(this.globalFilterValue, 'contains');
     }
 
@@ -283,6 +408,21 @@ export class CustomTable implements OnChanges {
         const term = this.globalFilterValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(`(${term})`, 'gi');
         return str.replace(regex, '<mark>$1</mark>');
+    }
+
+    /** Memoized cell value: gọi formatValue + getHighlightedText đúng 1 lần/cell, cache lại cho các CD cycle tiếp theo */
+    getCellValue(col: ColumnDef, rowData: any): string {
+        const rowKey = this.dataKey ? rowData[this.dataKey] : null;
+        const cacheKey = rowKey != null
+            ? `${col.field}__${rowKey}__${this.globalFilterValue}`
+            : null;
+        if (cacheKey) {
+            const cached = this.cellValueCache.get(cacheKey);
+            if (cached !== undefined) return cached;
+        }
+        const result = this.getHighlightedText(this.formatValue(col, rowData));
+        if (cacheKey) this.cellValueCache.set(cacheKey, result);
+        return result;
     }
 
     isFilterSelected(value: any[], val: any): boolean {
@@ -388,6 +528,7 @@ export class CustomTable implements OnChanges {
     onSelectionChange(selection: any) {
         this.selection = selection;
         this.selectionChange.emit(selection);
+        this.focusedCell = null;
     }
 
     toggleGroup(group: string) {
@@ -404,7 +545,10 @@ export class CustomTable implements OnChanges {
 
     onContextMenuSelect(event: any) {
         this.selectedContextRow = event.data;
-        this.contextMenuSelectionChange.emit(event.data);
+        if (this.contextMenuItems) {
+            this.contextMenuItems.forEach(item => (item as any).data = event.data);
+        }
+        this.selectedContextRowChange.emit(event.data);
         if (this.selectionMode) {
             if (Array.isArray(this.selection)) {
                 if (!this.selection.includes(event.data)) {
@@ -553,6 +697,14 @@ export class CustomTable implements OnChanges {
     }
 
     /** Multi-select: click checkbox to toggle row */
+    toggleAllLookupRows() {
+        if (this.lookupSelectedRows.length === this.lookupFilteredData.length) {
+            this.lookupSelectedRows = [];
+        } else {
+            this.lookupSelectedRows = [...this.lookupFilteredData];
+        }
+    }
+
     toggleLookupRow(row: any) {
         const cfg = this.activeLookupCol?.editLookupConfig;
         if (!cfg) return;
@@ -589,22 +741,6 @@ export class CustomTable implements OnChanges {
         if (!this.activeLookupRowData) return false;
         const cur = this.activeLookupRowData[this.activeLookupCol!.field];
         return cur === row[cfg.valueField];
-    }
-
-    isAllLookupSelected(): boolean {
-        return this.lookupFilteredData.length > 0 && this.lookupSelectedRows.length === this.lookupFilteredData.length;
-    }
-
-    toggleAllLookupRows() {
-        if (this.isAllLookupSelected()) {
-            this.lookupSelectedRows = [];
-        } else {
-            this.lookupSelectedRows = [...this.lookupFilteredData];
-        }
-    }
-
-    clearLookupSelection() {
-        this.lookupSelectedRows = [];
     }
 
     // =============================================
@@ -660,6 +796,23 @@ export class CustomTable implements OnChanges {
                 icon: 'pi pi-search',
                 command: () => { this.showGlobalFilter = !this.showGlobalFilter; }
             }
+        );
+
+        // --- Layout Save/Load (only when layoutKey is set) ---
+        if (this.layoutKey) {
+            this.headerMenuItems.push(
+                { separator: true },
+                { label: 'Lưu layout hiện tại', icon: 'pi pi-save', command: () => this.openLayoutDialog('0') },
+                { label: 'Quản lý layout', icon: 'pi pi-cog', command: () => this.openLayoutDialog('1') },
+                { label: 'Reset layout mặc định', icon: 'pi pi-refresh', command: () => this.resetLayout() }
+            );
+        }
+
+        // Tính không gian còn lại bên dưới vị trí click để submenu không tràn viewport
+        const availableBelow = window.innerHeight - (event.clientY ?? 0) - 12;
+        document.documentElement.style.setProperty(
+            '--tbl-submenu-max-height',
+            Math.max(Math.min(availableBelow, 240), 80) + 'px'
         );
 
         this.hcm.show(event);
@@ -771,18 +924,18 @@ export class CustomTable implements OnChanges {
         this.showColumnChooser = true;
     }
 
-    applyColumnChooser() {
-        // Filter out hidden ones from the user's ordered list
+    private _syncChooserToColumns() {
         this.columns = this.chooserColumns.filter(c => !this._hiddenFields.has(c.field));
-        // Also re-sync the internal full list order based on the new visible layout
         const chosenFields = new Set(this.columns.map(c => c.field));
         const newAllColumns = [...this.columns];
         this._allColumns.forEach(c => {
-            if (!chosenFields.has(c.field)) {
-                newAllColumns.push(c);
-            }
+            if (!chosenFields.has(c.field)) newAllColumns.push(c);
         });
         this._allColumns = newAllColumns;
+    }
+
+    applyColumnChooser() {
+        this._syncChooserToColumns();
         this.showColumnChooser = false;
     }
 
@@ -795,8 +948,9 @@ export class CustomTable implements OnChanges {
     }
 
     toggleChooserColumnVisible(event: any, field: string) {
-        event.stopPropagation();
+        event?.originalEvent?.stopPropagation();
         this.toggleColumnVisible(field);
+        this._syncChooserToColumns();
     }
 
     // =============================================
@@ -812,11 +966,32 @@ export class CustomTable implements OnChanges {
         // Handle original table-lookup click behavior
         if (col.editType === 'table-lookup' && col.editable && this.editMode) {
             this.openTableLookup(event, col, rowData);
+        } else if (col.clickable) {
+            this.cellAction.emit({ field: col.field, rowData });
         }
     }
 
     isCellFocused(rowData: any, colField: string): boolean {
         return this.focusedCell?.rowData === rowData && this.focusedCell?.colField === colField;
+    }
+
+    // =============================================
+    // DateTime Filter
+    // =============================================
+    toggleDateFilterMode(field: string, filterCallback: Function) {
+        this.dateFilterMode[field] = this.dateFilterMode[field] === 'range' ? 'single' : 'range';
+        this.dateRangeFilter[field] = [];
+        this.dateSingleFilter[field] = null;
+        filterCallback(null);
+    }
+
+    onDateRangeChange(field: string, value: Date[], filterCallback: Function) {
+        this.dateRangeFilter[field] = value;
+        if (value && value.length >= 2 && value[0] && value[1]) {
+            filterCallback(value);
+        } else if (!value || value.length === 0) {
+            filterCallback(null);
+        }
     }
 
     @HostListener('keydown', ['$event'])
@@ -838,5 +1013,246 @@ export class CustomTable implements OnChanges {
                 }
             }
         }
+    }
+
+    // =============================================
+    // Layout Persistence — Save / Load / Reset
+    // =============================================
+
+    /** Collect current table state into a serializable layout object */
+    getLayoutData(layoutName: string = 'Untitled'): TableLayoutData {
+        const columnsLayout: TableColumnLayout[] = this._allColumns.map((col, idx) => ({
+            field: col.field,
+            width: col.width,
+            hidden: this._hiddenFields.has(col.field),
+            order: idx,
+            frozen: col.frozen,
+            alignFrozen: col.alignFrozen
+        }));
+
+        // Capture actual widths from DOM if available (after user resizes columns)
+        const host = (this.dt as any)?.el?.nativeElement as HTMLElement;
+        if (host) {
+            const headerCells = host.querySelectorAll<HTMLElement>('.p-datatable-thead > tr:not(.filter-header-row) > th');
+            // Skip control columns (reorder, expand, checkbox)
+            let offset = 0;
+            if (this.reorderableRows) offset++;
+            if (this.expandable) offset++;
+            if (this.selectionMode === 'multiple') offset++;
+
+            // Also skip the hidden sizing row — get only the main header row
+            const mainRow = host.querySelectorAll<HTMLElement>('.p-datatable-thead > tr');
+            let visibleHeaderCells: HTMLElement[] = [];
+            mainRow.forEach(row => {
+                if (row.style.height !== '0px' && row.querySelectorAll('th').length > 0) {
+                    // this is a real header row
+                    const cells = row.querySelectorAll<HTMLElement>('th');
+                    if (cells.length > visibleHeaderCells.length) {
+                        visibleHeaderCells = Array.from(cells);
+                    }
+                }
+            });
+
+            const visibleCols = this.columns;
+            for (let i = 0; i < visibleCols.length; i++) {
+                const cellIdx = i + offset;
+                const cell = visibleHeaderCells[cellIdx];
+                if (cell) {
+                    const layoutCol = columnsLayout.find(c => c.field === visibleCols[i].field);
+                    if (layoutCol) {
+                        layoutCol.width = cell.offsetWidth + 'px';
+                    }
+                }
+            }
+        }
+
+        return {
+            layoutKey: this.layoutKey,
+            layoutName,
+            columns: columnsLayout,
+            showColumnFilter: this.showColumnFilter,
+            showGlobalFilter: this.showGlobalFilter,
+            sortField: this.dt?.sortField as string | undefined,
+            sortOrder: this.dt?.sortOrder,
+            fontSize: this.fontSize,
+            textWrap: this.textWrap
+        };
+    }
+
+    /** Apply a layout preset to the table */
+    applyLayout(layout: TableLayoutData): void {
+        if (!layout?.columns?.length) return;
+
+        // Build a map of original column definitions (from _initialColumns)
+        const colDefMap = new Map<string, ColumnDef>();
+        this._initialColumns.forEach(c => colDefMap.set(c.field, { ...c }));
+        // Also include any columns that were added dynamically
+        this._allColumns.forEach(c => {
+            if (!colDefMap.has(c.field)) colDefMap.set(c.field, { ...c });
+        });
+
+        // Sort by layout order
+        const sortedLayout = [...layout.columns].sort((a, b) => a.order - b.order);
+
+        // Rebuild _allColumns in the layout order, applying width/frozen settings
+        const newAllColumns: ColumnDef[] = [];
+        const newHiddenFields = new Set<string>();
+
+        for (const lc of sortedLayout) {
+            const def = colDefMap.get(lc.field);
+            if (!def) continue; // Column no longer exists in definition
+            def.width = lc.width;
+            def.frozen = lc.frozen;
+            def.alignFrozen = lc.alignFrozen;
+            newAllColumns.push(def);
+            if (lc.hidden) newHiddenFields.add(lc.field);
+        }
+
+        // Add any columns missing from layout (new columns added since layout was saved)
+        colDefMap.forEach((def, field) => {
+            if (!sortedLayout.some(lc => lc.field === field)) {
+                newAllColumns.push(def);
+            }
+        });
+
+        this._allColumns = newAllColumns;
+        this._hiddenFields = newHiddenFields;
+        this.columns = this.visibleColumns;
+
+        // Apply table-level settings
+        this.showColumnFilter = layout.showColumnFilter;
+        this.showGlobalFilter = layout.showGlobalFilter;
+        if (layout.fontSize) this.fontSize = layout.fontSize;
+        if (layout.textWrap !== undefined) this.textWrap = layout.textWrap;
+
+        // Apply sort
+        if (layout.sortField && this.dt) {
+            this.dt.sortField = layout.sortField;
+            this.dt.sortOrder = layout.sortOrder || 1;
+            this.dt.sortSingle();
+        }
+
+        // Recalculate frozen positions
+        setTimeout(() => this.recalcFrozenPositions());
+
+        this.layoutLoad.emit(layout);
+    }
+
+    /** Reset to the original column definitions */
+    resetLayout(): void {
+        this._hiddenFields.clear();
+        this._allColumns = this._initialColumns.map(c => ({ ...c }));
+        this.columns = [...this._allColumns];
+        this.showColumnFilter = this._initialShowColumnFilter;
+        this.showGlobalFilter = this._initialShowGlobalFilter;
+        this.fontSize = this._initialFontSize;
+        this.textWrap = this._initialTextWrap;
+
+        // Clear sort
+        if (this.dt) {
+            this.dt.sortField = undefined;
+            this.dt.sortOrder = 0;
+            this.dt.multiSortMeta = [];
+            this._data = [...this._originalData];
+            this.dt.value = this._data;
+            if (this.dt.tableService) {
+                this.dt.tableService.onSort(null);
+            }
+        }
+
+        this.scheduleBuildFilterOptionsCache();
+        setTimeout(() => this.recalcFrozenPositions());
+    }
+
+    /** Auto-load default layout from API on component init */
+    private autoLoadDefaultLayout(): void {
+        this.layoutService.getLayouts(this.layoutKey).subscribe((layouts: TableLayoutData[]) => {
+            this.layoutList = layouts;
+            const defaultLayout = layouts.find((l: TableLayoutData) => l.isDefault);
+            if (defaultLayout) {
+                // Defer to next tick to ensure columns are initialized
+                setTimeout(() => {
+                    this.applyLayout(defaultLayout);
+                    this._layoutInitDone = true;
+                });
+            } else {
+                this._layoutInitDone = true;
+            }
+        });
+    }
+
+    // --- Layout Dialog ---
+
+    openLayoutDialog(tab: string = '0'): void {
+        this.layoutDialogTab = tab;
+        this.layoutNameInput = '';
+        this.showLayoutDialog = true;
+        this.refreshLayoutList();
+    }
+
+    refreshLayoutList(): void {
+        if (!this.layoutKey) return;
+        this.layoutLoading = true;
+        this.layoutService.getLayouts(this.layoutKey).subscribe({
+            next: (layouts: TableLayoutData[]) => {
+                this.layoutList = layouts;
+                this.layoutLoading = false;
+            },
+            error: () => {
+                this.layoutLoading = false;
+            }
+        });
+    }
+
+    saveCurrentLayout(): void {
+        const name = this.layoutNameInput?.trim();
+        if (!name) return;
+
+        const layout = this.getLayoutData(name);
+        this.layoutSaving = true;
+
+        this.layoutService.saveLayout(layout).subscribe({
+            next: (saved: TableLayoutData) => {
+                this.layoutSaving = false;
+                this.layoutNameInput = '';
+                this.layoutSave.emit(saved);
+                this.refreshLayoutList();
+            },
+            error: (err: any) => {
+                this.layoutSaving = false;
+                console.error('[CustomTable] Failed to save layout:', err);
+            }
+        });
+    }
+
+    loadLayout(layout: TableLayoutData): void {
+        this.applyLayout(layout);
+        this.showLayoutDialog = false;
+    }
+
+    deleteLayoutItem(layout: TableLayoutData): void {
+        if (!layout._id) return;
+        this.layoutService.deleteLayout(layout._id).subscribe({
+            next: () => {
+                this.layoutDelete.emit(layout._id);
+                this.refreshLayoutList();
+            },
+            error: (err: any) => {
+                console.error('[CustomTable] Failed to delete layout:', err);
+            }
+        });
+    }
+
+    setDefaultLayout(layout: TableLayoutData): void {
+        if (!layout._id) return;
+        this.layoutService.setDefault(layout._id).subscribe({
+            next: () => {
+                // Update local list
+                this.layoutList.forEach(l => l.isDefault = (l._id === layout._id));
+            },
+            error: (err: any) => {
+                console.error('[CustomTable] Failed to set default layout:', err);
+            }
+        });
     }
 }

@@ -1,33 +1,171 @@
 :host {
-    display: block;
-    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 :host:focus {
     outline: none;
 }
 
-/* Centering Table Headers */
-:host ::ng-deep .p-datatable-thead>tr>th {
-    text-align: center;
-    justify-content: center;
-    white-space: nowrap;
+/* Support scrollHeight="flex": let p-datatable fill the flex host */
+:host ::ng-deep .p-datatable-scrollable {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
-/* Force horizontal scroll when scrollable is powered on */
-:host ::ng-deep .p-datatable-wrapper {
-    overflow-x: auto !important;
+:host ::ng-deep .p-datatable-scrollable .p-datatable-wrapper {
+    flex: 1;
+    min-height: 0;
+}
+
+/* ── Global Search — compact, top-right ── */
+:host ::ng-deep .p-datatable-caption {
+    padding: 2px 6px !important;
+    background: transparent !important;
+    border-bottom: none !important;
+}
+
+:host ::ng-deep .global-search-field {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+}
+
+:host ::ng-deep .global-search-icon {
+    font-size: var(--table-font-size, 12px) !important;
+}
+
+:host ::ng-deep .global-search-input { 
+    height: 3vh !important;
+    width: 100% !important;
+    font-size: var(--table-font-size, 16px) !important;
+    padding: 0 0.5rem 0 2rem !important;
+}
+
+:host ::ng-deep .p-datatable-thead>tr>th {
+    text-align: center;
+    vertical-align: middle;
+}
+
+:host ::ng-deep .header-content-wrapper {
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    min-height: 24px !important;
+}
+
+:host ::ng-deep .header-spacer {
+    flex: 1 !important;
+}
+
+:host ::ng-deep .header-text {
+    flex: 0 1 auto !important;
+    text-align: center !important;
+    padding: 0 4px !important;
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+}
+
+:host ::ng-deep .header-icons {
+    flex: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 4px !important;
+}
+
+
+/* Filter row compact height */
+:host ::ng-deep .p-datatable-thead > tr.filter-header-row > th {
+    padding: 2px 4px !important;
+}
+
+/* Normalize filter input and select heights */
+:host ::ng-deep .filter-header-row .p-inputtext,
+:host ::ng-deep .filter-header-row .p-select {
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+    box-sizing: border-box !important;
+    font-size: var(--table-font-size, 11px);
+}
+
+:host ::ng-deep .filter-header-row .p-inputtext {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    line-height: 22px !important;
+    font-size: var(--table-font-size, 11px);
+}
+
+:host ::ng-deep .filter-header-row .p-select .p-select-label {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    line-height: 22px !important;
+    font-size: var(--table-font-size, 11px);
+}   
+
+:host ::ng-deep .filter-header-row .p-select .p-select-dropdown {
+    width: 24px !important;
+}
+
+:host ::ng-deep .filter-header-row .p-multiselect {
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+    box-sizing: border-box !important;
+    font-size: var(--table-font-size, 11px);
+}
+
+:host ::ng-deep .filter-header-row .p-multiselect .p-multiselect-label {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    line-height: 22px !important;
+    font-size: var(--table-font-size, 11px);
+}
+
+:host ::ng-deep .filter-header-row .p-multiselect .p-multiselect-dropdown {
+    width: 24px !important;
+}
+
+:host ::ng-deep .p-datatable-scrollable .p-datatable-table {
+    table-layout: fixed;
+}
+
+/* Better visual feedback for resizing */
+:host ::ng-deep .p-resizable-column {
+    position: relative;
+    background-clip: padding-box;
+}
+
+:host ::ng-deep .p-column-resizer {
+    width: 8px !important;
+    border-right: 2px solid transparent;
+    transition: border-color 0.2s;
+}
+
+:host ::ng-deep .p-column-resizer:hover {
+    border-right-color: var(--p-primary-color, #3b82f6);
+}
+
+/* Table font size (controlled via --table-font-size CSS variable) */
+:host ::ng-deep .p-datatable {
+    font-size: var(--table-font-size, 11px);
 }
 
 /* =====================================================
    Frozen Column Fixes
    ===================================================== */
 
-/* Fix 1: Hide resize handle on frozen header cells.
-   Resizing frozen columns with resizeMode="fit" creates a blank white gap.
-   Frozen columns have a fixed role (anchors) and should not be resized. */
-:host ::ng-deep .p-datatable-resizable-table > .p-datatable-thead > tr > th.p-datatable-frozen-column .p-datatable-column-resizer {
-    display: none;
+/* Frozen columns are resizable (resizeMode="expand" avoids the blank-gap issue of "fit" mode) */
+
+/* Prevent frozen columns from collapsing in expand resize mode */
+:host ::ng-deep .p-datatable .p-datatable-thead > tr > th.p-datatable-frozen-column,
+:host ::ng-deep .p-datatable .p-datatable-tbody > tr > td.p-datatable-frozen-column {
+    min-width: 40px;
 }
 
 /* Fix 2: Gridlines mode — add right border to ALL frozen columns so the separator
@@ -71,8 +209,10 @@
     width: 100% !important;
 }
 
-/* Fix for PrimeNG specific input containers */
-:host ::ng-deep .p-inputtext {
+/* Fix for PrimeNG specific input containers — only filter inputs, not global search */
+:host ::ng-deep .p-datatable-thead .p-inputtext,
+:host ::ng-deep .p-datatable-tbody .p-inputtext,
+:host ::ng-deep .p-column-filter-row .p-inputtext {
     width: 100% !important;
 }
 
@@ -271,8 +411,198 @@
 
 /* Cell Focus Selection */
 :host ::ng-deep .focused-cell {
-    outline: 2px solid var(--p-primary-color, #3b82f6) !important;
-    outline-offset: -2px; /* Keeps the outline inside the cell bounds */
-    position: relative;
-    z-index: 1;
+    box-shadow: inset 0 0 0 2px var(--p-primary-color, #3b82f6) !important;
+}
+/* ── Multiselect overlay font size ── */
+::ng-deep .p-multiselect-overlay .p-select-overlay {
+  font-size: 12px !important;
+}
+::ng-deep .p-multiselect-filter .p-inputtext{
+  padding: 3px 15px 3px 5px;
+  font-size: 12px;
+}
+::ng-deep .p-select-list-container{
+  font-size: 12px;
+
+}
+::ng-deep .p-multiselect-list{
+  font-size: 12px;
+
+}
+/* ── Table header context menu: submenu scrollable khi nhiều cột ── */
+::ng-deep .tbl-header-cm .p-contextmenu-submenu,
+.tbl-header-cm .p-submenu-list {
+  max-height: var(--tbl-submenu-max-height, 240px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+::ng-deep .p-datepicker-input .p-inputtext .p-filled{
+    padding: 0 20px 0 12px;
+}
+
+/* ── Virtual Scroll: fixed row height ──
+   When virtualScroll is on, PrimeNG/CDK assumes every row has the exact same height
+   (virtualScrollItemSize). Variable row heights from text wrapping cause the scroller
+   to mis-calculate total content height → scroll jumps back near the last rows.
+   We use the .vs-active class (set via HostBinding) so selectors work regardless
+   of PrimeNG's internal DOM structure. */
+:host.vs-active ::ng-deep .p-datatable-tbody > tr {
+    height: var(--virtual-row-height) !important;
+    max-height: var(--virtual-row-height) !important;
+    min-height: var(--virtual-row-height) !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+}
+
+:host.vs-active ::ng-deep .p-datatable-tbody > tr > td {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+}
+
+/* Override wrap-text class inside virtual scroll to prevent variable heights */
+:host.vs-active ::ng-deep .p-datatable-tbody > tr > td .wrap-text,
+:host.vs-active ::ng-deep .p-datatable-tbody > tr > td .truncate-text {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+    line-height: calc(var(--virtual-row-height) - 6px) !important;
+}
+
+/* =====================================================
+   Layout Settings Dialog
+   ===================================================== */
+
+.layout-save-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--p-blue-50, #eff6ff);
+    border: 1px solid var(--p-blue-200, #bfdbfe);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: var(--p-blue-700, #1d4ed8);
+    line-height: 1.4;
+}
+
+.layout-save-info i {
+    margin-top: 1px;
+    flex-shrink: 0;
+}
+
+.layout-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 30px 20px;
+    color: var(--p-surface-500, #64748b);
+    font-size: 0.9rem;
+}
+
+.layout-empty-state i {
+    font-size: 2rem;
+    color: var(--p-surface-300, #cbd5e1);
+}
+
+.layout-list {
+    max-height: 300px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.layout-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border: 1px solid var(--p-surface-200, #e2e8f0);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    background: var(--p-surface-0, #fff);
+}
+
+.layout-list-item:hover {
+    background: var(--p-surface-50, #f8fafc);
+    border-color: var(--p-primary-200, #bfdbfe);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.layout-list-item-default {
+    border-color: var(--p-primary-200, #bfdbfe);
+    background: var(--p-primary-50, #eff6ff);
+}
+
+.layout-list-item-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.layout-list-item-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--p-surface-800, #1e293b);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.layout-default-badge {
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--p-primary-100, #dbeafe);
+    color: var(--p-primary-700, #1d4ed8);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.layout-list-item-meta {
+    font-size: 0.75rem;
+    color: var(--p-surface-500, #64748b);
+}
+
+.layout-list-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.layout-list-item:hover .layout-list-item-actions {
+    opacity: 1;
+}
+
+::ng-deep .layout-dialog .p-dialog-content {
+    padding: 0 !important;
+}
+
+::ng-deep .layout-dialog .p-tablist {
+    border-bottom: 1px solid var(--p-surface-200);
+}
+
+::ng-deep .layout-dialog .p-tab {
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+::ng-deep .layout-dialog .p-tabpanels {
+    padding: 0;
+    background: transparent;
 }

@@ -24,8 +24,9 @@ export interface ColumnDef {
     width?: string;
     /** PrimeNG filter type: 'text' | 'numeric' | 'date'. Default: 'text' */
     filterType?: string;
-    /** Filter UI mode: 'input' | 'dropdown' | 'multiselect'. Default: 'input' */
-    filterMode?: 'input' | 'dropdown' | 'multiselect';
+    /** Filter UI mode: 'input' | 'dropdown' | 'multiselect' | 'datetime'. Default: 'input'
+     *  'datetime' shows a date picker with toggle between single-date and date-range modes. */
+    filterMode?: 'input' | 'dropdown' | 'multiselect' | 'datetime';
     /** Manual filter options. If empty, auto-populated from data. Format: [{label, value}] */
     filterOptions?: { label: string; value: any }[];
     /** Lazy load function for filter dropdown/multiselect options.
@@ -86,4 +87,10 @@ export interface ColumnDef {
     /** CSS class(es) applied to the footer cell only (overrides cssClass for footer).
      *  If omitted, cssClass is used. */
     footerClass?: string;
+    /** Emit cellAction event when cell is clicked (for action/icon columns). Default: false */
+    clickable?: boolean;
+    /** Custom HTML rendered inside the header cell (overrides col.header text). */
+    headerFormat?: () => string;
+    /** Emit headerCellAction when the header cell is clicked. Requires headerFormat. Default: false */
+    headerClickable?: boolean;
 }

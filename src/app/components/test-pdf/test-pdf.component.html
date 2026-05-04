@@ -1,0 +1,41 @@
+<div class="pdf-toolbar">
+    <label class="upload-btn">
+        📄 Chọn PDF
+        <input type="file" (change)="onPdfUpload($event)" accept="application/pdf" hidden />
+    </label>
+    <label class="upload-btn">
+        🖼️ Chọn Ảnh
+        <input type="file" (change)="onImageUpload($event)" accept="image/png, image/jpeg" hidden />
+    </label>
+</div>
+
+<div class="settings-panel">
+    <div class="setting-item">
+        <label>Tọa độ X (px từ trái):</label>
+        <input type="number" [value]="stampX" (input)="onInput('stampX', $event)"/>
+    </div>
+    <div class="setting-item">
+        <label>Tọa độ Y (px từ trên):</label>
+        <input type="number" [value]="stampY" (input)="onInput('stampY', $event)"/>
+    </div>
+    <div class="setting-item">
+        <label>Chiều rộng (px):</label>
+        <input type="number" [value]="stampWidth" (input)="onInput('stampWidth', $event)"/>
+    </div>
+    <div class="setting-item">
+        <label>Chiều cao (px):</label>
+        <input type="number" [value]="stampHeight" (input)="onInput('stampHeight', $event)"/>
+    </div>
+    
+    <button class="save-btn action-btn" (click)="processPdf()">
+        ⚙️ Chèn ảnh & View kết quả
+    </button>
+</div>
+
+<div class="info-note">
+    <p>💡 <b>Lưu ý:</b></p>
+    <ul>
+        <li>Ảnh sẽ được chèn vào <b>tất cả các trang</b> của file PDF tại vị trí tọa độ đã cấu hình.</li>
+        <li>File PDF gốc (text, vector) <b>không bị giảm độ phân giải</b> do cấu trúc PDF được giữ nguyên, chỉ chèn thêm object ảnh.</li>
+    </ul>
+</div>
